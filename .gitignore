@@ -40,6 +40,10 @@ report*.html
 /dist/
 /spillcheck
 
+# Project progress tracking is local-only (owner decision).
+# Keep the working copy at docs/PROGRESS.md locally; never push it.
+docs/PROGRESS.md
+
 # Editor/IDE
 # .idea/
 # .vscode/

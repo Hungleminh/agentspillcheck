@@ -69,7 +69,7 @@ Chỉ kiểm thử agent bạn sở hữu hoặc được phép kiểm thử. D�
 
 ### Lộ trình và giấy phép
 
-Xem [docs/PROGRESS.md](docs/PROGRESS.md) và [docs/PLAN.md](docs/PLAN.md). Giấy phép Apache-2.0 — xem [LICENSE](LICENSE) và [NOTICE](NOTICE).
+Xem [docs/PLAN.md](docs/PLAN.md). Giấy phép Apache-2.0 — xem [LICENSE](LICENSE) và [NOTICE](NOTICE).
 
 ---
 
@@ -136,4 +136,4 @@ Only test agents you own or are authorised to test. All generated data is fake. 
 
 ### Roadmap and licence
 
-See [docs/PROGRESS.md](docs/PROGRESS.md) and [docs/PLAN.md](docs/PLAN.md). Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+See [docs/PLAN.md](docs/PLAN.md). Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).

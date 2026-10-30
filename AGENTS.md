@@ -49,7 +49,7 @@ Required:
 - Work on `feat/...` branches; open a PR per checklist step; never push
   directly to `main`.
 - Bind `127.0.0.1` by default; never log full bait values at INFO.
-- Update `docs/PROGRESS.md` at the end of every working session.
+- Progress tracking is local-only (owner decision): keep it in the local, git-ignored `docs/PROGRESS.md`; never commit or push it.
 
 ## Security
 
