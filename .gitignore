@@ -27,6 +27,18 @@ go.work.sum
 
 # env file
 .env
+*.env
+
+# AgentSpillCheck local data and session artefacts (PLAN 17.1)
+.spillcheck/
+test/tmp/
+*.db
+*.db-shm
+*.db-wal
+report*.html
+!docs/report-samples/report*.html
+/dist/
+/spillcheck
 
 # Editor/IDE
 # .idea/
