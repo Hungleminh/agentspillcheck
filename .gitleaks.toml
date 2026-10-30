@@ -1,0 +1,16 @@
+title = "AgentSpillCheck gitleaks config"
+
+# Only the intentionally fake bait formats in docs and tests are allowed.
+# Never add a broad allowlist. See docs/PLAN.md section 17.1.
+[allowlist]
+description = "Fake bait examples in docs and tests only"
+regexes = [
+  '''sk-spill-[A-Za-z0-9_-]{8,}''',
+  '''ASPL[A-Z0-9]{8,}''',
+  '''ghp_spill_[A-Za-z0-9_-]{8,}''',
+  '''EXAMPLE-NOT-A-KEY''',
+]
+paths = [
+  '''(^|/)docs/''',
+  '''(^|/)test/''',
+]
