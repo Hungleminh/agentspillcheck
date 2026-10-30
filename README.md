@@ -6,7 +6,7 @@
 
 ### Demo video · Video demo
 
-[![Watch the 140s demo — English narration with subtitles](video/out/demo-poster.jpg)](https://github.com/Hungleminh/agentspillcheck/blob/main/video/out/agent-spillcheck-demo.mp4)
+[![Watch the 140s demo — English narration with subtitles](video/out/demo-poster.jpg)](https://youtu.be/V8oSr_aFQNM)
 
 ---
 
