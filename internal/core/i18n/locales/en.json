@@ -12,7 +12,7 @@
   "doctor.data_dir": "Data directory",
   "doctor.writable": "writable",
   "doctor.not_writable": "not writable",
-  "up.starting": "Serving dashboard at http://127.0.0.1:%d/",
+  "up.starting": "Serving dashboard at http://%s:%d/",
   "dashboard.title": "Dashboard",
   "dashboard.empty": "No sessions yet. Session creation arrives in the next step.",
   "dashboard.responsible_use": "Only test agents you own or are authorised to test.",

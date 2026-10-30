@@ -19,6 +19,7 @@ services:
       - no-new-privileges:true
     environment:
       SPILLCHECK_LOCALE: "${SPILLCHECK_LOCALE:-vi}"
+      SPILLCHECK_BIND: "0.0.0.0"
       SPILLCHECK_PUBLIC: "false"
       HOME: /data
     ports:
