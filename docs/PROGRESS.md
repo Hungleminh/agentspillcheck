@@ -14,6 +14,8 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 - Step 1 PR (open): https://github.com/Hungleminh/agentspillcheck/pull/1
   (`feat/bootstrap-repo` -> `main`).
+- Step 5 PR (open, stacked): https://github.com/Hungleminh/agentspillcheck/pull/5
+  (`feat/mcp-server` -> `feat/stage-drive-webmail`).
 - Step 4 PR (open, stacked): https://github.com/Hungleminh/agentspillcheck/pull/4
   (`feat/stage-drive-webmail` -> `feat/bait-generator`).
 - Step 3 PR (open, stacked): https://github.com/Hungleminh/agentspillcheck/pull/3
