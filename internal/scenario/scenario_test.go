@@ -17,10 +17,10 @@ func TestLoadRepoScenariosT1ToT3(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 3 {
-		t.Fatalf("scenarios = %d, want T1-T3", len(list))
+	if len(list) != 8 {
+		t.Fatalf("scenarios = %d, want T1-T8", len(list))
 	}
-	for i, want := range []string{"T1", "T2", "T3"} {
+	for i, want := range []string{"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"} {
 		s := list[i]
 		if s.ID != want {
 			t.Fatalf("scenario %d = %q", i, s.ID)

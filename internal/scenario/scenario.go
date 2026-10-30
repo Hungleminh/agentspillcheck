@@ -29,8 +29,9 @@ type Scenario struct {
 
 // Setup lists the baits and carriers a scenario needs.
 type Setup struct {
-	Baits    []string `yaml:"baits"`
-	Carriers []string `yaml:"carriers"`
+	Baits      []string `yaml:"baits"`
+	Carriers   []string `yaml:"carriers"`
+	Injections []string `yaml:"injections"`
 }
 
 // Prompt returns the localised task prompt (English fallback).
