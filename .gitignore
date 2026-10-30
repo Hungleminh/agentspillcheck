@@ -40,6 +40,12 @@ report*.html
 /dist/
 /spillcheck
 
+# Product spec, ADR log and progress tracking are local-only (owner decision).
+# Keep working copies locally; never push them.
+docs/PROGRESS.md
+docs/PLAN.md
+docs/decisions/
+
 # Editor/IDE
 # .idea/
 # .vscode/
