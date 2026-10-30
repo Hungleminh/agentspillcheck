@@ -1,5 +1,14 @@
 services:
+  spillcheck-init:
+    image: golang:1.26-alpine
+    user: "0:0"
+    volumes:
+      - spillcheck-data:/data
+    command: ["chown", "-R", "65532:65532", "/data"]
   spillcheck:
+    depends_on:
+      spillcheck-init:
+        condition: service_completed_successfully
     image: ghcr.io/hungleminh/agentspillcheck:latest
     build:
       context: ..
