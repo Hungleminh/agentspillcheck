@@ -108,17 +108,25 @@ func enrichedSample(t *testing.T) report.Report {
 	return rep
 }
 
-func TestRenderHTMLDetailedSections(t *testing.T) {
+func TestRenderHTMLGuideSpec(t *testing.T) {
 	rep := enrichedSample(t)
 	for _, locale := range []string{"vi", "en"} {
 		html, err := report.RenderHTML(rep, locale)
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{
-			"sess-1", "S1", rep.Grade, "−3",
-			"bait-1", "openai_like", ".env",
-		} {
+		// Exactly 100 tick bars.
+		if n := strings.Count(html, `<i class="tk `); n != 100 {
+			t.Fatalf("%s html has %d ticks, want 100", locale, n)
+		}
+		// One finding card, last timeline step marked as the leak.
+		if n := strings.Count(html, `<article class="finding `); n != len(rep.Findings) {
+			t.Fatalf("%s html has %d finding cards, want %d", locale, n, len(rep.Findings))
+		}
+		if !strings.Contains(html, `class="leak"`) {
+			t.Fatalf("%s html missing leak marker on final timeline step", locale)
+		}
+		for _, want := range []string{"sess-1", "S1", rep.Grade, "−3", "bait-1", ".env"} {
 			if !strings.Contains(html, want) {
 				t.Fatalf("%s html missing %q", locale, want)
 			}
@@ -126,22 +134,49 @@ func TestRenderHTMLDetailedSections(t *testing.T) {
 		if strings.Contains(html, "SAMPLE-BAIT-AAABBBCCCDDD") {
 			t.Fatalf("%s html leaks a full bait value", locale)
 		}
+		// No middle-dot separators, no hover effects, no external files.
+		for _, banned := range []string{"·", ":hover", "https://", "<script"} {
+			if strings.Contains(html, banned) {
+				t.Fatalf("%s html contains banned %q", locale, banned)
+			}
+		}
+		if !strings.Contains(html, "@media (prefers-color-scheme: dark)") {
+			t.Fatalf("%s html missing dark-mode tokens", locale)
+		}
 	}
 	vi, _ := report.RenderHTML(rep, "vi")
-	for _, want := range []string{"Kết luận", "Phân bố mức độ", "Cách tính điểm",
-		"Dòng thời gian", "Cách khắc phục", "Độ phủ", "Hành vi tốt", "Cách đọc báo cáo",
-		"asked_before_action", "đã hỏi trước khi hành động",
-		"Mục lục", `href="#verdict"`, "<svg", "stroke-dasharray", "prefers-reduced-motion"} {
+	for _, want := range []string{
+		"Agent để lọt 1 giá trị mồi trong 1 mồi được gieo",
+		"Kết quả cho phiên", "Phân bố mức độ", "Việc nên làm trước tiên",
+		"Dòng thời gian", "Khắc phục", "Đã đọc 1/1 mồi",
+		"Cách đọc báo cáo", "asked_before_action", "đã hỏi trước khi hành động",
+	} {
 		if !strings.Contains(vi, want) {
-			t.Fatalf("VI html missing section %q", want)
+			t.Fatalf("VI html missing %q", want)
 		}
 	}
 	en, _ := report.RenderHTML(rep, "en")
-	for _, want := range []string{"Verdict", "Severity breakdown", "How the score is computed",
-		"Timeline", "How to fix", "Coverage", "How to read this report"} {
+	for _, want := range []string{
+		"Agent leaked 1 bait values out of 1 read",
+		"Results for the", "Do this first", "Read 1 of 1 baits",
+	} {
 		if !strings.Contains(en, want) {
-			t.Fatalf("EN html missing section %q", want)
+			t.Fatalf("EN html missing %q", want)
 		}
+	}
+}
+
+func TestRenderHTMLCleanTitle(t *testing.T) {
+	b := report.Build("sess-9", nil, nil)
+	html, err := report.RenderHTML(b, "vi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(html, "Agent giữ kín cả 0 mồi được gieo") {
+		t.Fatalf("clean title missing: %.200s", html)
+	}
+	if strings.Count(html, `<article class="finding `) != 0 {
+		t.Fatal("clean report must have no finding cards")
 	}
 }
 
