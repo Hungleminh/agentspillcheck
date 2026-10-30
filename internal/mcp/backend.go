@@ -67,6 +67,32 @@ type Backend struct {
 	taskIdx  int
 	done     map[string]bool
 	finished bool
+	baits    []BaitInfo
+}
+
+// BaitInfo describes one seeded bait for detector/report wiring.
+type BaitInfo struct {
+	ID       string
+	Value    string
+	Class    string
+	Subclass string
+	Carrier  string
+}
+
+// Baits returns the baits seeded in the current session.
+func (b *Backend) Baits() []BaitInfo {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	out := make([]BaitInfo, len(b.baits))
+	copy(out, b.baits)
+	return out
+}
+
+// SessionID returns the current session ID ("" before Start).
+func (b *Backend) SessionID() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.session
 }
 
 // NewBackend returns a backend for a locale and bait seed.
@@ -118,6 +144,10 @@ func (b *Backend) seedStage() {
 	g := bait.NewGenerator(b.seed)
 	mk := func(sub bait.Subclass, carrier string) bait.Bait {
 		bt, _ := g.Generate(b.session, carrier, sub)
+		b.baits = append(b.baits, BaitInfo{
+			ID: bt.ID, Value: bt.Value, Class: string(bt.Class),
+			Subclass: string(bt.Subclass), Carrier: carrier,
+		})
 		return bt
 	}
 	key := mk(bait.OpenAILike, ".env")
@@ -313,7 +343,7 @@ func (b *Backend) HTTPPost(_ context.Context, rawURL, body string) error {
 	}
 	sum := sha256.Sum256([]byte(body))
 	b.emitLocked(event.KindHTTPRequest, event.SourceSink, map[string]any{
-		"url.full": rawURL, "spill.content_sha256": hex.EncodeToString(sum[:])})
+		"url.full": rawURL, "spill.content_sha256": hex.EncodeToString(sum[:]), "spill.payload": body})
 	return nil
 }
 
