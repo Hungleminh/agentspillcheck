@@ -4,6 +4,12 @@
 
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue) ![telemetry](https://img.shields.io/badge/telemetry-none-green)
 
+### Demo video · Video demo
+
+![AgentSpillCheck demo (140s, English narration with subtitles)](video/out/agent-spillcheck-demo.mp4)
+
+[Watch directly](video/out/agent-spillcheck-demo.mp4) · 140s · English narration with subtitles · [Remotion](https://www.remotion.dev/) sources in [`video/`](video/).
+
 ---
 
 ## Tiếng Việt
