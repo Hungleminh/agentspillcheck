@@ -43,10 +43,20 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 ## Next
 
-- Merge the PR stack #1-#10 in order, run the manual tests
-  (PLAN 18.4) on real Windows 11/macOS/Ubuntu setups, then the
+- Run the manual tests (PLAN 18.4) on real Windows 11/macOS/Ubuntu
+  setups when the owner gives instructions for them, then the
   owner tags `v0.1.0-rc1` and `v0.1.0`. Still open: Q2 (stage
-  domain, before v0.2), Q10 (Dependabot auto-merge, at CI hardening).
+  domain, before v0.2), Q10 (Dependabot auto-merge, at CI
+  hardening).
+
+- 2026-10-30: PR #10 was retargeted to `main` and merged
+  (merge commit `01b86eb`) after its CI (test + 3-OS build) and
+  CodeQL `analyze` both completed `success`. PRs #1-#9 were closed
+  as landed via PR #10, each with an explanatory comment; no
+  branch-protection rule was bypassed or weakened, and the
+  expected CodeQL failure on PR #1 (no Go source on the bootstrap
+  branch) became moot because PR #10 contains real Go code.
+  Environment/manual testing remains deferred per the owner.
 - MERGE BLOCKER (2026-10-30): merging was attempted in order and
   stopped at PR #1. Its CodeQL `analyze` check fails because that
   bootstrap branch contains no Go code yet (autobuild has nothing
