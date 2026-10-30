@@ -27,7 +27,17 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 ## Next
 
-- Step 3 of checklist 24.6: bait generator. Ask Q7 and Q8 first.
+- Step 4 of checklist 24.6: stage drive + webmail, event bus, SQLite.
+
+- 2026-10-30: Owner confirmed secret scanning + push protection and
+  branch protection on `main` are enabled in GitHub Settings.
+- 2026-10-30: Owner answered Q7/Q8; recorded in ADR-0003 (card bait:
+  custom range failing Luhn) and ADR-0004 (persona names: random per
+  session with an exclusion list).
+- 2026-10-30: Step 3 on `feat/bait-generator`: `internal/bait`
+  (4 bait groups, identifier embedding, fingerprints, JWT, card fails
+  Luhn) and `internal/core/persona`. Local evidence: `go vet ./...`,
+  `go test ./... -count=1` (6 packages ok), `go build ./...`.
 
 ## Waiting on the project owner
 
