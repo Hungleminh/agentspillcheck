@@ -15,5 +15,7 @@
   "up.starting": "Serving dashboard at http://127.0.0.1:%d/",
   "dashboard.title": "Dashboard",
   "dashboard.empty": "No sessions yet. Session creation arrives in the next step.",
-  "dashboard.responsible_use": "Only test agents you own or are authorised to test."
+  "dashboard.responsible_use": "Only test agents you own or are authorised to test.",
+  "drive.title": "Fake drive",
+  "mail.title": "Fake mailbox"
 }

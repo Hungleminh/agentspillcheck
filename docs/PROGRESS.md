@@ -29,7 +29,18 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 ## Next
 
-- Step 4 of checklist 24.6: stage drive + webmail, event bus, SQLite.
+- Step 5 of checklist 24.6: MCP server with spill_* and stage_* tools.
+
+- 2026-10-30: PR #3 CI confirmed terminal: all 4 check-runs success.
+- 2026-10-30: Step 4 on `feat/stage-drive-webmail`: `internal/event`
+  (OTel-aligned schema, bus), `internal/store` (SQLite WAL via a
+  pure-Go driver, append-only events), `internal/stage/drive` and
+  `internal/stage/webmail` (JSON API + HTML, per-session namespaces,
+  paginated reads, bait-tagged events, HTML escaping, body limits).
+  Wiring bus events into the store happens when sessions are created
+  (core session step); the stage emits to the bus today.
+  Local evidence: `go vet ./...`, `go test ./... -count=1`
+  (10 packages ok), `go build ./...`.
 
 - 2026-10-30: Owner confirmed secret scanning + push protection and
   branch protection on `main` are enabled in GitHub Settings.
