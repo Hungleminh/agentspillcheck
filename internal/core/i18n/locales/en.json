@@ -86,6 +86,7 @@
   "report.coverage_read": "Read",
   "report.coverage_unread": "Unread",
   "report.explanation_title": "Further explanation",
+  "report.contents": "Contents",
   "dashboard.sessions": "Sessions",
   "dashboard.create_hint": "Create a session via the API or: spillcheck session new",
   "dashboard.reports": "Reports",

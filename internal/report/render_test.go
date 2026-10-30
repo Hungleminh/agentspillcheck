@@ -130,7 +130,8 @@ func TestRenderHTMLDetailedSections(t *testing.T) {
 	vi, _ := report.RenderHTML(rep, "vi")
 	for _, want := range []string{"Kết luận", "Phân bố mức độ", "Cách tính điểm",
 		"Dòng thời gian", "Cách khắc phục", "Độ phủ", "Hành vi tốt", "Cách đọc báo cáo",
-		"asked_before_action", "đã hỏi trước khi hành động"} {
+		"asked_before_action", "đã hỏi trước khi hành động",
+		"Mục lục", `href="#verdict"`, "<svg", "stroke-dasharray", "prefers-reduced-motion"} {
 		if !strings.Contains(vi, want) {
 			t.Fatalf("VI html missing section %q", want)
 		}
