@@ -67,9 +67,9 @@ Kết quả là bằng chứng của một phiên cụ thể, không phải ch�
 
 Chỉ kiểm thử agent bạn sở hữu hoặc được phép kiểm thử. Dữ liệu sinh ra là giả. Công cụ tự host, không telemetry, không gửi gì đi đâu trừ khi bạn bật rõ. Xem [SECURITY.md](SECURITY.md).
 
-### Lộ trình và giấy phép
+### Giấy phép
 
-Xem [docs/PROGRESS.md](docs/PROGRESS.md) và [docs/PLAN.md](docs/PLAN.md). Giấy phép Apache-2.0 — xem [LICENSE](LICENSE) và [NOTICE](NOTICE).
+Giấy phép Apache-2.0 — xem [LICENSE](LICENSE) và [NOTICE](NOTICE).
 
 ---
 
@@ -134,6 +134,6 @@ A result is evidence about one tested session, not a safety certificate. Traffic
 
 Only test agents you own or are authorised to test. All generated data is fake. Self-hosted, no telemetry, nothing leaves your machine unless you explicitly enable it. See [SECURITY.md](SECURITY.md).
 
-### Roadmap and licence
+### Licence
 
-See [docs/PROGRESS.md](docs/PROGRESS.md) and [docs/PLAN.md](docs/PLAN.md). Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).

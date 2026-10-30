@@ -6,17 +6,17 @@ Guidance for coding agents working in this repository.
 
 AgentSpillCheck feeds fake sensitive data to an AI agent and reports what
 it read, where it sent it, where it kept it, and whether it was encrypted,
-without ever touching the user's real data (`docs/PLAN.md` section 1.1).
+without ever touching the user's real data.
 
 ## Governing document
 
-Read `docs/PLAN.md` in full before work. Section 3 lists open questions:
-stop and ask the project owner, then record the answer in
-`docs/decisions/ADR-xxxx.md`. Never assume an answer.
+The product spec and ADR log are maintained locally by the owner and are
+not published in this repo. For any open product question: stop and ask
+the project owner, and never assume an answer.
 
 ## Layout
 
-Planned layout is in `docs/PLAN.md` section 5. Code lives under
+Code lives under
 `cmd/spillcheck/` and `internal/`; public schemas under `pkg/schema/`.
 
 ## Commands
@@ -35,13 +35,13 @@ Forbidden:
   or real personal data. The repo contains formats and dictionaries only.
 - Adding telemetry or any "phone home" behaviour.
 - Calling external services on the detection path, or using an LLM in
-  detection (PLAN D11).
+  detection (no LLM is used in detection).
 - Hardcoding user-visible strings. All display strings go through i18n
   VI/EN (`internal/core/i18n`).
 
 Required:
 
-- Apache-2.0 licence header in every source file (PLAN D4).
+- Apache-2.0 licence header in every source file.
 - Update both VI and EN i18n locales for every new display string.
 - Update schema and golden files when the report format changes.
 - Run gitleaks before committing when it is available.
@@ -49,9 +49,11 @@ Required:
 - Work on `feat/...` branches; open a PR per checklist step; never push
   directly to `main`.
 - Bind `127.0.0.1` by default; never log full bait values at INFO.
-- Update `docs/PROGRESS.md` at the end of every working session.
+- Progress tracking is local-only (owner decision): never commit or push progress notes.
 
 ## Security
 
-The full checklist in `docs/PLAN.md` section 17 is mandatory; this repo
-is public from the first commit.
+This repo is public from the first commit: never commit real bait
+values, secrets, tokens, `.env` files, session data, or real personal
+data; keep telemetry out; bind `127.0.0.1` by default; never log full
+bait values at INFO.
