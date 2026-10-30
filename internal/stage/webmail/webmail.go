@@ -103,7 +103,9 @@ func (s *Service) Send(to, subject, body string) error {
 	s.sent = append(s.sent, m)
 	s.mu.Unlock()
 	sum := sha256.Sum256([]byte(body))
-	s.emit(event.KindMailSent, map[string]any{"spill.to": to, "spill.content_sha256": hex.EncodeToString(sum[:])})
+	// spill.payload exists only on the in-memory event stream for the
+	// detectors; persisted/logged forms must use the hash (PLAN 17.2).
+	s.emit(event.KindMailSent, map[string]any{"spill.to": to, "spill.content_sha256": hex.EncodeToString(sum[:]), "spill.payload": body})
 	return nil
 }
 

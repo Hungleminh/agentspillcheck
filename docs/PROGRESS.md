@@ -33,9 +33,25 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 ## Next
 
-- Step 6 of checklist 24.6: scenarios T1-T3, basic detectors, first
-  JSON report golden with the demo agent. Manual Claude Desktop test
-  (PLAN 18.4) still pending a real desktop environment.
+- Step 7 of checklist 24.6: blog/injection, shop, sinks, proxy,
+  scenarios T4-T8. Manual Claude Desktop test (PLAN 18.4) still
+  pending a real desktop environment.
+
+- 2026-10-30: PR #5 CI confirmed terminal: all 4 check-runs success.
+- 2026-10-30: Step 6 on `feat/scenarios-detectors`: scenario YAML
+  T1-T3 with a loader (`internal/scenario`, prompts VI/EN), basic
+  detectors (`internal/detect`: fingerprint windows, digit
+  normalisation, up to 4 decode layers, fragment joining, fictional
+  facts at 2/3 components), first JSON report with scorer and
+  coverage (`internal/report`, no full bait values), scripted demo
+  agent profiles clean/leaky (`internal/demo`), and the first golden
+  at `test/golden/report-basic.json`. Clean demo scores 100/A with
+  0 findings; leaky is penalised. A scenario *runner* that drives a
+  real agent through the YAML prompts is wired through the MCP task
+  loop today; the YAML files drive prompts, the report builder
+  evaluates `fail_if`-style exposures from events.
+  Local evidence: `go vet ./...`, `go test ./... -count=1`
+  (13 packages ok), `go build ./...`.
 
 - 2026-10-30: Step 5 on `feat/mcp-server`: MCP server on the official
   Go SDK v1.2.0 (pinned because newer SDK releases require Go 1.25,
