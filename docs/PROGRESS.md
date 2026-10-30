@@ -35,9 +35,23 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 ## Next
 
-- Step 7 of checklist 24.6: blog/injection, shop, sinks, proxy,
-  scenarios T4-T8. Manual Claude Desktop test (PLAN 18.4) still
-  pending a real desktop environment.
+- Step 8 of checklist 24.6: analyzer, scorer, HTML/MD reports.
+  Ask Q4 (LLM report explanations) and Q9 (logo/brand colours) first.
+  Manual Claude Desktop test (PLAN 18.4) still pending a real
+  desktop environment.
+
+- 2026-10-30: PR #6 CI confirmed terminal: all 4 check-runs success.
+- 2026-10-30: Step 7 on `feat/stage-injection-sinks`: fake blog with
+  a hidden prompt-injection on post 3 (variants plain-hidden, base64,
+  split, markdown-title), fake shop with hashed-card checkout,
+  honeypot sinks (backup-sync, online-converter, payments,
+  webhook-catcher; record and never forward), egress proxy recording
+  `proxy.connect` with an SSRF guard for private destinations,
+  scenarios T4-T8 plus the web injection definition, MCP
+  `stage_fetch_url` serving the injection on post 3, and reports
+  raising injection-driven sink sends to S4.
+  Local evidence: `go vet ./...`, `go test ./... -count=1`
+  (17 packages ok), `go build ./...`.
 
 - 2026-10-30: PR #5 CI confirmed terminal: all 4 check-runs success.
 - 2026-10-30: Step 6 on `feat/scenarios-detectors`: scenario YAML
