@@ -37,10 +37,25 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 ## Next
 
-- Step 8 of checklist 24.6: analyzer, scorer, HTML/MD reports.
-  Ask Q4 (LLM report explanations) and Q9 (logo/brand colours) first.
-  Manual Claude Desktop test (PLAN 18.4) still pending a real
-  desktop environment.
+- Step 9 of checklist 24.6: connectors, full dashboard, installers,
+  goreleaser, `v0.1.0-rc1`. Ask Q6 (Windows 10 vs 11) before
+  installers. Manual Claude Desktop test (PLAN 18.4) still pending
+  a real desktop environment.
+
+- 2026-10-30: PR #7 CI confirmed terminal: all 4 check-runs success.
+- 2026-10-30: Owner answered Q4/Q9; recorded in ADR-0005 (optional
+  LLM report explanations with the user's own key, off by default,
+  anonymised JSON only) and ADR-0006 (minimal brand: text wordmark,
+  primary colour `#0E7C6B`).
+- 2026-10-30: Step 8 on `feat/analyzer-reports`: causal analyzer
+  with root-cause labels and good-behaviour detection
+  (`internal/analyze`), transport/content-encoding assessment,
+  localised summary, self-contained HTML and Markdown report
+  renderers with masked bait values only, and the optional LLM
+  explanation path (fake-client tested to prove no full bait value
+  leaves the machine and the score never changes).
+  Local evidence: `go vet ./...`, `go test ./... -count=1`
+  (18 packages ok), `go build ./...`.
 
 - 2026-10-30: PR #6 CI confirmed terminal: all 4 check-runs success.
 - 2026-10-30: Step 7 on `feat/stage-injection-sinks`: fake blog with
