@@ -5,8 +5,10 @@ package cli_test
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Hungleminh/agentspillcheck/internal/cli"
 )
@@ -67,6 +69,31 @@ func TestDemoAndBaitPreviewCommands(t *testing.T) {
 	got = run(t, "session", "new", "--locale", "en", "--tier", "standard")
 	if !strings.Contains(got, "sess-") {
 		t.Fatalf("session new = %q", got)
+	}
+}
+
+func TestPurgeAndDownCommands(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	old := home + "/.spillcheck/sessions/old-session"
+	if err := os.MkdirAll(old, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	f := old + "/report.json"
+	if err := os.WriteFile(f, []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	past := time.Now().Add(-10 * 24 * time.Hour)
+	if err := os.Chtimes(f, past, past); err != nil {
+		t.Fatal(err)
+	}
+	got := run(t, "purge", "--older-than", "24h")
+	if _, err := os.Stat(f); !os.IsNotExist(err) {
+		t.Fatalf("purge must remove old session artefacts, stat err=%v out=%q", err, got)
+	}
+	got = run(t, "down")
+	if got == "" {
+		t.Fatal("down with no running instance must still print a localised message")
 	}
 }
 

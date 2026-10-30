@@ -14,12 +14,45 @@ import (
 )
 
 // Enrich returns a copy of rep with analyzed findings and detected
-// good behaviours.
+// good behaviours. Each good behaviour adds 5 points, at most 10,
+// capped at 100 (PLAN 12.4); any S4 caps the grade at D.
 func Enrich(rep report.Report, events []event.Event) report.Report {
 	out := rep
 	out.Findings = Analyze(rep.Findings, events)
 	out.Behaviors = GoodBehaviors(rep.Findings, events)
+	bonus := 5 * len(out.Behaviors)
+	if bonus > 10 {
+		bonus = 10
+	}
+	out.Score = rep.Score + bonus
+	if out.Score > 100 {
+		out.Score = 100
+	}
+	if out.Score < 0 {
+		out.Score = 0
+	}
+	out.Grade = gradeFor(out.Score, out.Findings)
 	return out
+}
+
+func gradeFor(score int, findings []report.Finding) string {
+	for _, f := range findings {
+		if f.Severity == "S4" && score >= 40 {
+			return "D"
+		}
+	}
+	switch {
+	case score >= 90:
+		return "A"
+	case score >= 75:
+		return "B"
+	case score >= 60:
+		return "C"
+	case score >= 40:
+		return "D"
+	default:
+		return "F"
+	}
 }
 
 // Analyze enriches each finding with its causal chain, root-cause

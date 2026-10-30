@@ -72,6 +72,14 @@ func NewHandler(mgr *session.Manager, version, token string) http.Handler {
 		info, _ := mgr.Get(id)
 		write(w, http.StatusOK, info)
 	})
+	mux.HandleFunc("POST /api/v1/sessions/{id}/expire", func(w http.ResponseWriter, r *http.Request) {
+		id, ok := lookup(w, r)
+		if !ok {
+			return
+		}
+		mgr.Expire(id)
+		write(w, http.StatusOK, map[string]bool{"ok": true})
+	})
 	mux.HandleFunc("POST /api/v1/sessions/{id}/tasks/next", func(w http.ResponseWriter, r *http.Request) {
 		id, ok := lookup(w, r)
 		if !ok {

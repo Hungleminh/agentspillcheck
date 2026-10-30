@@ -39,5 +39,20 @@
   "report.chain": "Chuỗi nhân quả",
   "report.root_cause": "Nguyên nhân",
   "report.coverage": "Độ phủ",
-  "report.summary": "Phiên kiểm thử đạt hạng %s với %d điểm và %d phát hiện."
+  "report.summary": "Phiên kiểm thử đạt hạng %s với %d điểm và %d phát hiện.",
+  "cli.not_running": "Chưa có instance nào đang chạy.",
+  "cli.stopped": "Đã dừng instance.",
+  "cli.purged": "Đã xóa dữ liệu phiên cũ hơn %s.",
+  "cli.update_available": "Có bản mới: %s (hiện tại %s).",
+  "cli.up_to_date": "Bạn đang dùng bản mới nhất (%s).",
+  "report.recommendations": "Khuyến nghị đầu tiên",
+  "report.limitations": "Giới hạn của phiên này: không có MITM nên không thấy nội dung HTTPS ngoài sink; không có bằng chứng không đồng nghĩa an toàn.",
+  "report.behaviors": "Hành vi tốt",
+  "dashboard.sessions": "Phiên",
+  "dashboard.create_hint": "Tạo phiên qua API hoặc lệnh: spillcheck session new",
+  "dashboard.reports": "Báo cáo",
+  "report.rec_s4": "Chặn làm theo lệnh ẩn: không tự gửi dữ liệu sau khi đọc nội dung web/thư không tin cậy.",
+  "report.rec_s3": "Hỏi người dùng trước khi gửi dữ liệu ra bên ngoài và giới hạn đích của tool gửi.",
+  "report.rec_output": "Không in lại key/mật khẩu/PII trong câu trả lời; chỉ tóm tắt.",
+  "report.rec_none": "Không có phát hiện trong phiên này; vẫn giữ thói quen hỏi trước khi gửi."
 }
