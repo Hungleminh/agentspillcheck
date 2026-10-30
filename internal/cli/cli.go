@@ -324,7 +324,7 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 			if stdio {
 				return spillmcp.RunStdio(cmd.Context(), backend, version)
 			}
-			addr := fmt.Sprintf("127.0.0.1:%d", cfg.PortBase)
+			addr := fmt.Sprintf("%s:%d", cfg.Bind, cfg.PortBase)
 			srv := &http.Server{Addr: addr, Handler: spillmcp.HTTPHandler(backend, version, ""), ReadHeaderTimeout: 5 * time.Second}
 			return srv.ListenAndServe()
 		},
@@ -349,8 +349,8 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			tr := trFor()
 			cfg := loadCfg(locale, portBase)
-			addr := fmt.Sprintf("127.0.0.1:%d", cfg.PortBase)
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", tr.Tf("up.starting", cfg.PortBase))
+			addr := fmt.Sprintf("%s:%d", cfg.Bind, cfg.PortBase)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", tr.Tf("up.starting", cfg.Bind, cfg.PortBase))
 			if err := os.MkdirAll(cfg.DataDir, 0o700); err == nil {
 				_ = os.WriteFile(filepath.Join(cfg.DataDir, "spillcheck.pid"), []byte(fmt.Sprintf("%d", os.Getpid())), 0o600)
 			}

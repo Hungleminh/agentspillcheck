@@ -17,10 +17,16 @@ import (
 // DefaultPortBase is the first port of the 7700-7709 range (ADR-0002).
 const DefaultPortBase = 7700
 
+// DefaultBind keeps listeners on loopback unless SPILLCHECK_BIND=0.0.0.0
+// is set explicitly (needed inside containers where the proxy dials the
+// container IP, not its loopback).
+const DefaultBind = "127.0.0.1"
+
 // Config is the resolved runtime configuration.
 type Config struct {
 	Locale        string
 	PortBase      int
+	Bind          string
 	Public        bool
 	RetentionDays int
 	DataDir       string
@@ -40,10 +46,15 @@ func Load(getenv func(string) string, sysLocale string) Config {
 			portBase = n
 		}
 	}
+	bind := DefaultBind
+	if raw := strings.TrimSpace(getenv("SPILLCHECK_BIND")); raw == "0.0.0.0" || raw == "127.0.0.1" {
+		bind = raw
+	}
 	home, _ := os.UserHomeDir()
 	return Config{
 		Locale:        locale,
 		PortBase:      portBase,
+		Bind:          bind,
 		Public:        false,
 		RetentionDays: 7,
 		DataDir:       filepath.Join(home, ".spillcheck"),

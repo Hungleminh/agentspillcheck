@@ -52,3 +52,24 @@ func TestInvalidPortBaseFallsBack(t *testing.T) {
 		t.Fatalf("PortBase = %d, want fallback 7700", cfg.PortBase)
 	}
 }
+
+func TestBindDefaultsToLoopback(t *testing.T) {
+	cfg := config.Load(env(map[string]string{}), "")
+	if cfg.Bind != "127.0.0.1" {
+		t.Fatalf("Bind = %q, want 127.0.0.1", cfg.Bind)
+	}
+}
+
+func TestBindEnvOverride(t *testing.T) {
+	cfg := config.Load(env(map[string]string{"SPILLCHECK_BIND": "0.0.0.0"}), "")
+	if cfg.Bind != "0.0.0.0" {
+		t.Fatalf("Bind = %q, want 0.0.0.0", cfg.Bind)
+	}
+}
+
+func TestBindRejectsUnexpectedValue(t *testing.T) {
+	cfg := config.Load(env(map[string]string{"SPILLCHECK_BIND": "example.com"}), "")
+	if cfg.Bind != "127.0.0.1" {
+		t.Fatalf("Bind = %q, want fallback 127.0.0.1", cfg.Bind)
+	}
+}
