@@ -39,10 +39,29 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 ## Next
 
-- Step 9 of checklist 24.6: connectors, full dashboard, installers,
-  goreleaser, `v0.1.0-rc1`. Ask Q6 (Windows 10 vs 11) before
-  installers. Manual Claude Desktop test (PLAN 18.4) still pending
-  a real desktop environment.
+- Step 10 of checklist 24.6: manual tests (PLAN 18.4), release
+  `v0.1.0`. Still open: Q2 (stage domain, before v0.2), Q10
+  (Dependabot auto-merge, at CI hardening). Manual Claude Desktop /
+  Windows 11 VM / macOS tests need real environments and remain
+  unverified; tagging `v0.1.0-rc1` and `v0.1.0` is the owner's call.
+
+- 2026-10-30: PR #8 CI confirmed terminal: all 4 check-runs success.
+- 2026-10-30: Owner answered Q6 (Windows 11 only, ADR-0007) and
+  deferred Q5 (video voice, ADR-0008).
+- 2026-10-30: Step 9 on `feat/connectors-api`: connectors
+  (manual, httpagent, claudecode with an injectable runner),
+  session manager persisting events to SQLite, REST API v1 with
+  bearer auth when a token is configured, CLI `session new`,
+  `bait preview`, `demo` (leaky grades B/86, clean A/100), and
+  `report` with `--explain-with` plus its disclosure line
+  (ADR-0005). `spillcheck up` now serves dashboard + API + MCP on
+  one port. Installers for Windows 11/macOS/Linux with checksum
+  verification, distroless non-root Docker, goreleaser config and a
+  SHA-pinned release workflow, and the bilingual README are in.
+  Installer execution on real Windows/macOS machines is NOT verified
+  here (config and syntax only). Local evidence: `go vet ./...`,
+  `go test ./... -count=1` (21 packages ok), `go build`, demo runs
+  in both locales.
 
 - 2026-10-30: PR #7 CI confirmed terminal: all 4 check-runs success.
 - 2026-10-30: Owner answered Q4/Q9; recorded in ADR-0005 (optional
