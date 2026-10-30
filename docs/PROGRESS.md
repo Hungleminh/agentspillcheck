@@ -14,6 +14,8 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 - Step 1 PR (open): https://github.com/Hungleminh/agentspillcheck/pull/1
   (`feat/bootstrap-repo` -> `main`).
+- Step 10 PR (open, stacked): https://github.com/Hungleminh/agentspillcheck/pull/10
+  (`feat/release-polish` -> `feat/connectors-api`).
 - Step 9 PR (open, stacked): https://github.com/Hungleminh/agentspillcheck/pull/9
   (`feat/connectors-api` -> `feat/analyzer-reports`).
 - Step 8 PR (open, stacked): https://github.com/Hungleminh/agentspillcheck/pull/8
