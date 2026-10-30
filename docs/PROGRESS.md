@@ -14,6 +14,8 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 - Step 1 PR (open): https://github.com/Hungleminh/agentspillcheck/pull/1
   (`feat/bootstrap-repo` -> `main`).
+- Step 7 PR (open, stacked): https://github.com/Hungleminh/agentspillcheck/pull/7
+  (`feat/stage-injection-sinks` -> `feat/scenarios-detectors`).
 - Step 6 PR (open, stacked): https://github.com/Hungleminh/agentspillcheck/pull/6
   (`feat/scenarios-detectors` -> `feat/mcp-server`).
 - Step 5 PR (open, stacked): https://github.com/Hungleminh/agentspillcheck/pull/5
