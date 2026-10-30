@@ -61,6 +61,7 @@ docs/decisions/
 video/node_modules/
 video/out/*
 !video/out/agent-spillcheck-demo.mp4
+!video/out/demo-poster.jpg
 video/public/
 video/vo/*.aiff
 video/vo/*.wav

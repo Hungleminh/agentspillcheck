@@ -6,9 +6,7 @@
 
 ### Demo video · Video demo
 
-▶️ [Watch the 140s demo — English narration with subtitles](https://github.com/Hungleminh/agentspillcheck/blob/main/video/out/agent-spillcheck-demo.mp4) (click to play in your browser).
-
-[Remotion](https://www.remotion.dev/) sources in [`video/`](video/).
+[![Watch the 140s demo — English narration with subtitles](video/out/demo-poster.jpg)](https://github.com/Hungleminh/agentspillcheck/blob/main/video/out/agent-spillcheck-demo.mp4)
 
 ---
 
