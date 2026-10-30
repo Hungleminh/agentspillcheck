@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -31,6 +32,12 @@ func (c *OpenAIClient) Complete(ctx context.Context, prompt string) (string, err
 	base := c.BaseURL
 	if base == "" {
 		base = "https://api.openai.com/v1"
+	}
+	if strings.HasPrefix(base, "http://") {
+		host := strings.TrimPrefix(base, "http://")
+		if !strings.HasPrefix(host, "localhost") && !strings.HasPrefix(host, "127.0.0.1") {
+			return "", fmt.Errorf("report: explain endpoint must use HTTPS (the API key would travel in plaintext)")
+		}
 	}
 	model := c.Model
 	if model == "" {
