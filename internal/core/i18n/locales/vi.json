@@ -86,6 +86,7 @@
   "report.coverage_read": "Đã đọc",
   "report.coverage_unread": "Chưa đọc",
   "report.explanation_title": "Diễn giải thêm",
+  "report.contents": "Mục lục",
   "dashboard.sessions": "Phiên",
   "dashboard.create_hint": "Tạo phiên qua API hoặc lệnh: spillcheck session new",
   "dashboard.reports": "Báo cáo",

@@ -53,6 +53,8 @@ func RenderHTML(rep Report, locale string) (string, error) {
 		"TimelineLabel": tr.T("report.timeline"),
 		"FixLabel":      tr.T("report.what_to_fix"),
 		"ExpLabel":      tr.T("report.explanation_title"), "Explanation": rep.Explanation,
+		"ContentsLabel": tr.T("report.contents"),
+		"RingDash":      fmt.Sprintf("%.1f", float64(rep.Score)/100.0*213.6),
 		"FactLabels": map[string]string{
 			"Bait": tr.T("report.bait"), "Masked": tr.T("report.masked"),
 			"Subclass": tr.T("report.subclass"), "Carrier": tr.T("report.carrier"),
@@ -142,6 +144,7 @@ type findingView struct {
 	RootCauses  string
 	Fix         string
 	Deduction   int
+	DelayMs     string
 	Chain       []ChainEvent
 }
 
@@ -170,6 +173,7 @@ func findingViews(rep Report, tr *i18n.Translator) []findingView {
 			SevColor: severityColor(f.Severity), SevLabel: tr.T("report.sev_" + f.Severity),
 			RootCauses: strings.Join(rc, "; "), Fix: findingFix(rep, tr, f),
 			Deduction: severityWeight[f.Severity], Chain: f.Chain,
+			DelayMs: fmt.Sprintf("%dms", min(i*90, 450)),
 		})
 	}
 	return out
@@ -269,56 +273,88 @@ const reportHTMLSource = `<!DOCTYPE html>
 <title>{{.Title}} — {{.Session}}</title>
 <style>
 :root{color-scheme:light}
-body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0 auto;max-width:62rem;padding:0 1.25rem 3rem;line-height:1.55;color:#1a1a1a}
-.banner{background:{{.Brand}};color:#fff;margin:0 -1.25rem 1.5rem;padding:1.25rem}
-.banner h1{margin:0;font-size:1.25rem;font-weight:700}
-.banner p{margin:.25rem 0 0;font-size:.85rem;opacity:.92}
-h2{font-size:1.15rem;margin:2rem 0 .75rem;padding-bottom:.3rem;border-bottom:2px solid {{.Brand}}}
-h3{font-size:1rem;margin:1.25rem 0 .5rem}
-.meta{font-size:.85rem;color:#444}
-.verdict{display:flex;gap:1rem;align-items:center;background:#f4faf8;border:1px solid #cfe7e0;border-radius:10px;padding:1rem 1.25rem}
-.grade{flex:none;width:4.5rem;height:4.5rem;border-radius:50%;color:#fff;font-size:2rem;font-weight:800;display:flex;align-items:center;justify-content:center}
-.pills{display:flex;gap:.5rem;flex-wrap:wrap}
-.pill{border:1px solid #ddd;border-radius:999px;padding:.2rem .8rem;font-size:.85rem}
-.pill b{color:#fff;border-radius:6px;padding:0 .4rem;margin-right:.35rem}
-.card{border:1px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin:0 0 1rem}
-.card h3{margin-top:0}
-dl{display:grid;grid-template-columns:11rem 1fr;gap:.15rem .75rem;margin:.75rem 0;font-size:.92rem}
-dt{color:#555}dd{margin:0}
-.badge{color:#fff;font-weight:700;border-radius:6px;padding:.05rem .5rem;white-space:nowrap}
-.fix{background:#fff8e6;border:1px solid #ecd9a0;border-radius:8px;padding:.5rem .8rem;margin:.75rem 0;font-size:.92rem}
-details{margin:.5rem 0;font-size:.9rem}
-summary{cursor:pointer;font-weight:600}
-ol.timeline{margin:.4rem 0;padding-left:1.4rem}
-ol.timeline li{margin:.15rem 0}
-ol.timeline code{font-size:.82rem;background:#f2f2f2;border-radius:4px;padding:0 .3rem}
-table{border-collapse:collapse;width:100%;font-size:.9rem}
-td,th{border:1px solid #ccc;padding:.35rem .6rem;text-align:left}
-th{background:#f4faf8}
-footer{margin-top:2.5rem;font-size:.8rem;color:#555;border-top:1px solid #ddd;padding-top:.75rem}
-@media print{.banner{margin:0 0 1rem}.card{break-inside:avoid}}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0 auto;max-width:64rem;padding:0 1.25rem 4rem;line-height:1.6;color:#17211f;background:#fbfdfc}
+.banner{background:{{.Brand}};color:#fff;margin:0 -1.25rem 0;padding:2rem 1.25rem 1.5rem}
+.banner .kicker{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;opacity:.85;margin:0 0 .3rem}
+.banner h1{margin:0;font-size:1.7rem;font-weight:800;letter-spacing:-.01em}
+.banner p{margin:.4rem 0 0;font-size:.88rem;opacity:.93}
+.banner code{background:rgba(255,255,255,.16);border-radius:5px;padding:.05rem .4rem}
+.toc{background:#fff;border:1px solid #dfe9e6;border-radius:12px;margin:1.25rem 0 0;padding:.9rem 1.2rem}
+.toc strong{font-size:.82rem;letter-spacing:.06em;text-transform:uppercase;color:#4a5a56}
+.toc nav{display:flex;flex-wrap:wrap;gap:.4rem .9rem;margin-top:.45rem;font-size:.9rem}
+.toc a{color:{{.Brand}};text-decoration:none;border-bottom:1px dotted {{.Brand}}}
+.toc a:hover{border-bottom-style:solid}
+.meta{font-size:.85rem;color:#4a5a56}
+h2.sec{font-size:1.3rem;margin:2.4rem 0 .9rem;display:flex;align-items:baseline;gap:.6rem;letter-spacing:-.01em}
+h2.sec .num{font-size:.8rem;font-weight:800;color:{{.Brand}};border:2px solid {{.Brand}};border-radius:8px;padding:.05rem .45rem}
+h2.sec small{font-weight:400;font-size:.85rem;color:#4a5a56}
+.verdict{position:relative;overflow:hidden;display:flex;gap:1.4rem;align-items:center;background:#fff;border:1px solid #dfe9e6;border-radius:14px;padding:1.4rem 1.5rem}
+.verdict::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:{{.Brand}}}
+.ring{flex:none}
+.ring .track{stroke:#e6efec}
+.ring .val{stroke:{{.GradeColor}};stroke-linecap:round;transition:stroke-dasharray .8s ease}
+.ring text{font-size:1.9rem;font-weight:800;fill:#17211f}
+.grade-pill{display:inline-block;color:#fff;font-weight:800;border-radius:8px;padding:.1rem .7rem;margin-right:.4rem}
+.pills{display:flex;gap:.6rem;flex-wrap:wrap}
+.pill{background:#fff;border:1px solid #dfe9e6;border-radius:12px;padding:.45rem .9rem;font-size:.87rem;display:flex;align-items:center;gap:.5rem}
+.pill b{color:#fff;border-radius:7px;padding:.1rem .5rem;font-size:.8rem}
+.card{background:#fff;border:1px solid #dfe9e6;border-radius:14px;padding:1.2rem 1.4rem;margin:0 0 1.1rem;animation:rise .45s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.card h3{margin:0 0 .2rem;font-size:1.05rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.card h3 code{background:#eef4f2;border-radius:6px;padding:.05rem .45rem}
+.badge{color:#fff;font-weight:800;font-size:.8rem;border-radius:7px;padding:.12rem .55rem;white-space:nowrap}
+dl.facts{display:grid;grid-template-columns:12rem 1fr;gap:.2rem .9rem;margin:.9rem 0;font-size:.92rem}
+dl.facts>div{display:contents}
+dt{color:#4a5a56}dd{margin:0}
+dd code{background:#eef4f2;border-radius:5px;padding:.02rem .35rem;font-size:.85em}
+.fix{background:#fff8e6;border:1px solid #e8d49a;border-radius:10px;padding:.6rem .9rem;margin:.9rem 0 0;font-size:.92rem}
+details{margin:.7rem 0 0;font-size:.9rem}
+summary{cursor:pointer;font-weight:700;color:{{.Brand}}}
+ol.step{list-style:none;margin:.6rem 0 0;padding:0;counter-reset:step}
+ol.step li{position:relative;margin:0;padding:0 0 .85rem 2.1rem;counter-increment:step}
+ol.step li::before{content:counter(step);position:absolute;left:0;top:.1rem;width:1.35rem;height:1.35rem;border-radius:50%;background:{{.Brand}};color:#fff;font-size:.75rem;font-weight:800;display:flex;align-items:center;justify-content:center}
+ol.step li::after{content:"";position:absolute;left:.65rem;top:1.6rem;bottom:-.1rem;width:2px;background:#cfe0da}
+ol.step li:last-child::after{display:none}
+ol.step code{font-size:.8rem;background:#eef4f2;border-radius:4px;padding:0 .3rem}
+ul.tight{margin:.5rem 0;padding-left:1.3rem}
+ul.tight li{margin:.25rem 0}
+.rec ol{margin:.5rem 0;padding-left:1.4rem}
+.rec li{margin:.3rem 0}
+.rec li::marker{color:{{.Brand}};font-weight:800}
+footer{margin-top:2.5rem;font-size:.8rem;color:#4a5a56;border-top:1px solid #dfe9e6;padding-top:.9rem}
+@media print{.toc,.banner{break-inside:avoid}.card{break-inside:avoid}.card{animation:none}}
+@media (prefers-reduced-motion: reduce){.card{animation:none}.ring .val{transition:none}}
 </style>
 </head><body>
-<div class="banner"><h1>AgentSpillCheck — {{.Title}}</h1>
+<div class="banner"><p class="kicker">AgentSpillCheck</p><h1>{{.Title}}</h1>
 <p>{{.SessionLabel}}: <code>{{.Session}}</code> · {{.GeneratedLabel}}: {{.Generated}}</p></div>
+
+<div class="toc"><strong>{{.ContentsLabel}}</strong><nav>
+<a href="#verdict">{{.VerdictLabel}}</a><a href="#sev">{{.SevDistLabel}}</a><a href="#findings">{{.FindingsLabel}}</a><a href="#score">{{.BreakdownLabel}}</a><a href="#coverage">{{.CoverageLabel}}</a>{{if .Behaviors}}<a href="#behaviors">{{.BehaviorsLabel}}</a>{{end}}<a href="#rec">{{.RecLabel}}</a><a href="#method">{{.MethodLabel}}</a>
+</nav></div>
 <p class="meta"><em>{{.Disclaimer}}</em></p>
 
-<h2>{{.VerdictLabel}}</h2>
+<h2 class="sec" id="verdict"><span class="num">01</span>{{.VerdictLabel}}</h2>
 <div class="verdict">
-<div class="grade" style="background:{{.GradeColor}}">{{.Grade}}</div>
-<div><div><strong>{{.GradeLabel}} {{.Grade}}</strong> · <strong>{{.ScoreLabel}} {{.Score}}/100</strong></div>
-<p style="margin:.4rem 0 0">{{.Summary}}</p></div>
+<svg class="ring" width="96" height="96" viewBox="0 0 96 96" role="img" aria-label="{{.ScoreLabel}} {{.Score}}/100">
+<circle class="track" cx="48" cy="48" r="34" fill="none" stroke-width="11"/>
+<circle class="val" cx="48" cy="48" r="34" fill="none" stroke-width="11" stroke-dasharray="{{.RingDash}} 213.6" transform="rotate(-90 48 48)"/>
+<text x="48" y="56" text-anchor="middle">{{.Score}}</text>
+</svg>
+<div><div><span class="grade-pill" style="background:{{.GradeColor}}">{{.GradeLabel}} {{.Grade}}</span><strong>{{.ScoreLabel}} {{.Score}}/100</strong></div>
+<p style="margin:.5rem 0 0">{{.Summary}}</p></div>
 </div>
 
-<h2>{{.SevDistLabel}}</h2>
+<h2 class="sec" id="sev"><span class="num">02</span>{{.SevDistLabel}}</h2>
 <div class="pills">{{range .SevDist}}<span class="pill"><b style="background:{{.Color}}">{{.Sev}} ×{{.Count}}</b>{{.Label}}</span>{{end}}</div>
 
-<h2>{{.FindingsLabel}} ({{len .Findings}})</h2>
+<h2 class="sec" id="findings"><span class="num">03</span>{{.FindingsLabel}} <small>({{len .Findings}})</small></h2>
 {{if .Findings}}{{range .Findings}}
-<div class="card">
-<h3>#{{.N}} <code>{{.BaitID}}</code> <span class="badge" style="background:{{.SevColor}}">{{.Severity}}</span></h3>
-<p style="margin:.2rem 0">{{.SevLabel}} · −{{.Deduction}}</p>
-<dl>
+<div class="card" style="animation-delay:{{.DelayMs}}">
+<h3><span class="meta">#{{.N}}</span> <code>{{.BaitID}}</code> <span class="badge" style="background:{{.SevColor}}">{{.Severity}}</span></h3>
+<p style="margin:.2rem 0;font-size:.9rem">{{.SevLabel}} · −{{.Deduction}}</p>
+<dl class="facts">
 <div><dt>{{$.FactLabels.Masked}}</dt><dd><code>{{.Masked}}</code></dd></div>
 <div><dt>{{$.FactLabels.Subclass}}</dt><dd>{{.Subclass}}</dd></div>
 <div><dt>{{$.FactLabels.Carrier}}</dt><dd><code>{{.Carrier}}</code></dd></div>
@@ -331,27 +367,27 @@ footer{margin-top:2.5rem;font-size:.8rem;color:#555;border-top:1px solid #ddd;pa
 </dl>
 <p class="fix"><strong>{{$.FixLabel}}:</strong> {{.Fix}}</p>
 {{if .Chain}}<details><summary>{{$.TimelineLabel}} ({{len .Chain}})</summary>
-<ol class="timeline">{{range .Chain}}<li><code>{{.TS.Format "15:04:05"}}</code> {{if .Tool}}<strong>{{.Tool}}</strong> · {{end}}{{.Kind}}@{{.Source}} <span class="meta">{{.EventID}}</span></li>{{end}}</ol>
+<ol class="step">{{range .Chain}}<li><code>{{.TS.Format "15:04:05"}}</code> {{if .Tool}}<strong>{{.Tool}}</strong> · {{end}}{{.Kind}}@{{.Source}} <span class="meta">{{.EventID}}</span></li>{{end}}</ol>
 </details>{{end}}
 </div>
 {{end}}{{else}}<p>{{.NoFindings}}</p>{{end}}
 
-<h2>{{.BreakdownLabel}}</h2>
-<ul>{{range .Breakdown}}<li>{{.}}</li>{{end}}</ul>
+<h2 class="sec" id="score"><span class="num">04</span>{{.BreakdownLabel}}</h2>
+<ul class="tight">{{range .Breakdown}}<li>{{.}}</li>{{end}}</ul>
 
-<h2>{{.CoverageLabel}}</h2>
+<h2 class="sec" id="coverage"><span class="num">05</span>{{.CoverageLabel}}</h2>
 <p><strong>{{.ReadLabel}} ({{len .Coverage.Read}}):</strong> {{range .Coverage.Read}}<code>{{.}}</code> {{end}}</p>
 <p><strong>{{.UnreadLabel}} ({{len .Coverage.Unread}}):</strong> {{range .Coverage.Unread}}<code>{{.}}</code> {{end}}</p>
 
-{{if .Behaviors}}<h2>{{.BehaviorsLabel}}</h2>
-<ul>{{range .Behaviors}}<li><code>{{.ID}}</code> — {{.Desc}}</li>{{end}}</ul>{{end}}
+{{if .Behaviors}}<h2 class="sec" id="behaviors"><span class="num">06</span>{{.BehaviorsLabel}}</h2>
+<ul class="tight">{{range .Behaviors}}<li><code>{{.ID}}</code> — {{.Desc}}</li>{{end}}</ul>{{end}}
 
-<h2>{{.RecLabel}}</h2>
-<ol>{{range .Recommendations}}<li>{{.}}</li>{{end}}</ol>
+<h2 class="sec" id="rec"><span class="num">07</span>{{.RecLabel}}</h2>
+<div class="rec"><ol>{{range .Recommendations}}<li>{{.}}</li>{{end}}</ol></div>
 
-<h2>{{.MethodLabel}}</h2><p>{{.MethodBody}}</p>
-<h2>{{.LimitLabel}}</h2><p>{{.Limitations}}</p>
-{{if .Explanation}}<h2>{{.ExpLabel}}</h2><p>{{.Explanation}}</p>{{end}}
+<h2 class="sec" id="method"><span class="num">08</span>{{.MethodLabel}}</h2><p>{{.MethodBody}}</p>
+<h2 class="sec" id="limit"><span class="num">09</span>{{.LimitLabel}}</h2><p>{{.Limitations}}</p>
+{{if .Explanation}}<h2 class="sec"><span class="num">10</span>{{.ExpLabel}}</h2><p>{{.Explanation}}</p>{{end}}
 <footer>AgentSpillCheck · {{.Session}} · {{.Generated}}</footer>
 </body></html>`
 
