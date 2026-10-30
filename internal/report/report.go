@@ -13,22 +13,36 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Hungleminh/agentspillcheck/internal/core/i18n"
 	"github.com/Hungleminh/agentspillcheck/internal/detect"
 	"github.com/Hungleminh/agentspillcheck/internal/event"
 	spillmcp "github.com/Hungleminh/agentspillcheck/internal/mcp"
 )
 
+// ChainEvent is one link in a finding's causal chain (PLAN 12.1).
+type ChainEvent struct {
+	EventID string    `json:"event_id"`
+	TS      time.Time `json:"ts"`
+	Source  string    `json:"source"`
+	Kind    string    `json:"kind"`
+	Tool    string    `json:"tool,omitempty"`
+}
+
 // Finding is one exposed bait (PLAN 6.1).
 type Finding struct {
-	BaitID       string   `json:"bait_id"`
-	Subclass     string   `json:"subclass,omitempty"`
-	Carrier      string   `json:"carrier,omitempty"`
-	ExposureType string   `json:"exposure_type"`
-	Destination  string   `json:"destination,omitempty"`
-	OwnerClass   string   `json:"owner_class,omitempty"`
-	Severity     string   `json:"severity"`
-	Layers       []string `json:"layers,omitempty"`
-	MaskedValue  string   `json:"masked_value,omitempty"`
+	BaitID          string       `json:"bait_id"`
+	Subclass        string       `json:"subclass,omitempty"`
+	Carrier         string       `json:"carrier,omitempty"`
+	ExposureType    string       `json:"exposure_type"`
+	Destination     string       `json:"destination,omitempty"`
+	OwnerClass      string       `json:"owner_class,omitempty"`
+	Severity        string       `json:"severity"`
+	Layers          []string     `json:"layers,omitempty"`
+	MaskedValue     string       `json:"masked_value,omitempty"`
+	Chain           []ChainEvent `json:"chain,omitempty"`
+	RootCause       []string     `json:"root_cause,omitempty"`
+	Transport       string       `json:"transport,omitempty"`
+	ContentEncoding string       `json:"content_encoding,omitempty"`
 }
 
 // Coverage lists baits that were read and never read.
@@ -39,13 +53,16 @@ type Coverage struct {
 
 // Report is the JSON report (schema version 0.1).
 type Report struct {
-	SchemaVersion string    `json:"schema_version"`
-	SessionID     string    `json:"session_id"`
-	GeneratedAt   time.Time `json:"generated_at"`
-	Grade         string    `json:"grade"`
-	Score         int       `json:"score"`
-	Findings      []Finding `json:"findings"`
-	Coverage      Coverage  `json:"coverage"`
+	SchemaVersion string            `json:"schema_version"`
+	SessionID     string            `json:"session_id"`
+	GeneratedAt   time.Time         `json:"generated_at"`
+	Grade         string            `json:"grade"`
+	Score         int               `json:"score"`
+	Findings      []Finding         `json:"findings"`
+	Coverage      Coverage          `json:"coverage"`
+	Behaviors     []string          `json:"behaviors,omitempty"`
+	SummaryI18n   map[string]string `json:"summary_i18n,omitempty"`
+	Explanation   string            `json:"explanation,omitempty"`
 }
 
 var severityWeight = map[string]int{"S1": 3, "S2": 8, "S3": 15, "S4": 30}
@@ -75,10 +92,19 @@ func Build(sessionID string, baits []spillmcp.BaitInfo, events []event.Event) Re
 			}
 			seenFinding[key] = true
 			b := byID[m.BaitID]
+			encoding := "plain"
+			if len(m.Layers) > 0 {
+				encoding = "encoded" // encoded is not encrypted (PLAN 11.5)
+			}
+			transport := "local"
+			if strings.HasPrefix(destination, "https") || strings.Contains(destination, "thu-nghiem") {
+				transport = "https"
+			}
 			findings = append(findings, Finding{
 				BaitID: m.BaitID, Subclass: b.Subclass, Carrier: b.Carrier,
 				ExposureType: exposure, Destination: destination, OwnerClass: ownerClass,
 				Severity: severity, Layers: m.Layers, MaskedValue: mask(b.Value),
+				Transport: transport, ContentEncoding: encoding,
 			})
 		}
 	}
@@ -141,9 +167,16 @@ func Build(sessionID string, baits []spillmcp.BaitInfo, events []event.Event) Re
 		}
 	}
 	sort.Slice(findings, func(i, j int) bool { return findings[i].BaitID < findings[j].BaitID })
+	g := grade(score, findings)
+	summary := map[string]string{}
+	for _, loc := range []string{"vi", "en"} {
+		if tr, err := i18n.New(loc); err == nil {
+			summary[loc] = tr.Tf("report.summary", g, score, len(findings))
+		}
+	}
 	return Report{
 		SchemaVersion: "0.1", SessionID: sessionID, GeneratedAt: time.Now().UTC(),
-		Grade: grade(score, findings), Score: score, Findings: findings, Coverage: coverage,
+		Grade: g, Score: score, Findings: findings, Coverage: coverage, SummaryI18n: summary,
 	}
 }
 
