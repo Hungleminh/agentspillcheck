@@ -54,8 +54,13 @@ Updated at the end of every working session (PLAN 0.1.8).
   (`internal/analyze`), transport/content-encoding assessment,
   localised summary, self-contained HTML and Markdown report
   renderers with masked bait values only, and the optional LLM
-  explanation path (fake-client tested to prove no full bait value
-  leaves the machine and the score never changes).
+  explanation library (fake-client tested to prove no full bait
+  value leaves the machine and the score never changes). Wiring
+  `--explain-with` into the CLI with its disclosure text, full
+  report sections (recommendations, per-bait table, limitations),
+  and behaviour bonus scoring land with the session/report CLI in
+  step 9; a code review of this PR fixed per-bait causal chains,
+  evidence-based root causes, and scheme-accurate transport.
   Local evidence: `go vet ./...`, `go test ./... -count=1`
   (18 packages ok), `go build ./...`.
 
