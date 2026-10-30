@@ -138,7 +138,7 @@ type sevEntry struct {
 	Sev, Label string
 	Count      int
 	Empty      bool
-	Pips       int
+	Num        int
 }
 
 // severityDist counts findings per severity in S1-S4 order.
@@ -150,7 +150,7 @@ func severityDist(rep Report, tr *i18n.Translator) []sevEntry {
 	out := []sevEntry{}
 	for i, s := range []string{"S1", "S2", "S3", "S4"} {
 		out = append(out, sevEntry{Sev: s, Label: tr.T("report.sev_" + s),
-			Count: counts[s], Empty: counts[s] == 0, Pips: i + 1})
+			Count: counts[s], Empty: counts[s] == 0, Num: i + 1})
 	}
 	return out
 }
@@ -574,10 +574,20 @@ h2 { font-size:22px; font-weight:600; margin:56px 0 12px; letter-spacing:-.01em;
 .rung { position:relative; overflow:hidden; border:1px solid var(--line); border-radius:var(--radius);
   padding:16px; background:var(--panel); }
 .rung::before { content:""; position:absolute; left:0; top:0; bottom:0; width:5px; }
+.rung[data-s="1"] { background:var(--tint-s1); } .rung[data-s="2"] { background:var(--tint-s2); }
+.rung[data-s="3"] { background:var(--tint-s3); } .rung[data-s="4"] { background:var(--tint-s4); }
 .rung[data-s="1"]::before { background:var(--s1); } .rung[data-s="2"]::before { background:var(--s2); }
 .rung[data-s="3"]::before { background:var(--s3); } .rung[data-s="4"]::before { background:var(--s4); }
+.rung[data-s="1"].empty { background:color-mix(in srgb,var(--tint-s1) 45%,var(--panel)); }
+.rung[data-s="2"].empty { background:color-mix(in srgb,var(--tint-s2) 45%,var(--panel)); }
+.rung[data-s="3"].empty { background:color-mix(in srgb,var(--tint-s3) 45%,var(--panel)); }
+.rung[data-s="4"].empty { background:color-mix(in srgb,var(--tint-s4) 45%,var(--panel)); }
 .rung .lvl { font-weight:700; font-size:14px; }
 .rung .count { font-size:44px; font-weight:700; letter-spacing:-.03em; line-height:1.1; }
+.rung[data-s="1"] .count { color:color-mix(in srgb,var(--s1) 60%,var(--ink)); }
+.rung[data-s="2"] .count { color:color-mix(in srgb,var(--s2) 60%,var(--ink)); }
+.rung[data-s="3"] .count { color:color-mix(in srgb,var(--s3) 60%,var(--ink)); }
+.rung[data-s="4"] .count { color:color-mix(in srgb,var(--s4) 60%,var(--ink)); }
 .rung.empty .count { color:var(--ink-3); font-weight:500; }
 .rung .what { font-size:14px; color:var(--ink-2); margin:2px 0 10px; }
 .pips { display:flex; gap:5px; }
@@ -718,7 +728,7 @@ footer { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; 
 <h2 id="h-sev">{{.SevDistLabel}}</h2>
 <p class="lede">{{.LadderLede}}</p>
 <div class="ladder">
-{{range .Ladder}}<div class="rung{{if .Empty}} empty{{end}}" data-s="{{.Sev}}">
+{{range .Ladder}}<div class="rung{{if .Empty}} empty{{end}}" data-s="{{.Num}}">
 <div class="lvl">{{.Sev}}</div><div class="count">{{.Count}}</div>
 <div class="what">{{.Label}}</div>
 <div class="pips" aria-hidden="true"><b></b><b></b><b></b><b></b></div></div>
