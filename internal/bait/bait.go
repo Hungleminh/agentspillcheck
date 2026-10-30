@@ -76,6 +76,16 @@ type Bait struct {
 	ExpiresAt    time.Time
 }
 
+// Catalog returns every v0.1 subclass and its class (for
+// `spillcheck bait preview`; formats only, never values).
+func Catalog() map[Subclass]Class {
+	out := make(map[Subclass]Class, len(classOf))
+	for k, v := range classOf {
+		out[k] = v
+	}
+	return out
+}
+
 // Generator creates baits deterministically from a seed (seed 42 is
 // used by demo mode) and never repeats a value.
 type Generator struct {
