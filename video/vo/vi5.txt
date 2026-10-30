@@ -1,0 +1,1 @@
+Đây là một lần chạy thật. Một agent bất cẩn được lập trình sẵn đọc tập tin môi trường, in key ra và gửi hợp đồng đi tiếp.

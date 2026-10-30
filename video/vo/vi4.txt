@@ -1,0 +1,1 @@
+Triển khai chỉ mất vài giây. Cài bản nhị phân, hoặc khởi động Docker image. Kết nối agent qua MCP với một đoạn cấu hình. Agent nhận việc, làm việc với các công cụ giả gồm ổ đĩa, thư, blog và cửa hàng, rồi hoàn thành như một nhiệm vụ thật.

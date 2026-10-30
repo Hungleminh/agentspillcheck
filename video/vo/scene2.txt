@@ -1,0 +1,1 @@
+Agents summarize folders, forward mail, and follow instructions hidden in web pages. One careless summary can print an API key. One helpful forward can mail a contract away. And a hidden instruction can make the agent send everything it knows to a stranger.

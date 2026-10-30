@@ -1,0 +1,1 @@
+Here is a real run. A scripted careless agent reads the environment file, prints the key, and mails the contract onward.

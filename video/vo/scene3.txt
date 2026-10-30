@@ -1,0 +1,1 @@
+AgentSpillCheck tests that behavior safely. It plants fake secrets, called baits, in a fake workspace. The agent works there like a normal job, reading files and sending mail. Detectors watch every read, every send, and every file the agent writes. At the end, you get a graded report: what was read, where it leaked, and why.

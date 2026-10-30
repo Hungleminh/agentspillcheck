@@ -49,3 +49,18 @@ docs/decisions/
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# macOS
+.DS_Store
+
+# Video demo project: track render sources (src, package.json,
+# package-lock.json, tsconfig.json, vo/*.txt narration scripts) plus
+# the final EN demo mp4 for GitHub preview. Everything regenerable
+# or installable stays local: deps, intermediate out/ files,
+# copied public/ render inputs, and generated voiceover audio.
+video/node_modules/
+video/out/*
+!video/out/agent-spillcheck-demo.mp4
+video/public/
+video/vo/*.aiff
+video/vo/*.wav
