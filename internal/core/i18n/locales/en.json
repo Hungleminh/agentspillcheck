@@ -1,0 +1,19 @@
+{
+  "app.name": "AgentSpillCheck",
+  "app.tagline": "Feed your AI agent fake sensitive data and see what it reads, where it sends it, and whether it is encrypted — without touching your real data.",
+  "root.short": "Check whether an AI agent leaks fake sensitive data",
+  "root.long": "AgentSpillCheck feeds fake sensitive data to an AI agent, then tells you what it read, where it sent it, where it kept it, and whether it was encrypted.",
+  "version.label": "version",
+  "doctor.title": "System check",
+  "doctor.go": "Go",
+  "doctor.port": "Port %d",
+  "doctor.port_free": "free",
+  "doctor.port_busy": "busy",
+  "doctor.data_dir": "Data directory",
+  "doctor.writable": "writable",
+  "doctor.not_writable": "not writable",
+  "up.starting": "Serving dashboard at http://127.0.0.1:%d/",
+  "dashboard.title": "Dashboard",
+  "dashboard.empty": "No sessions yet. Session creation arrives in the next step.",
+  "dashboard.responsible_use": "Only test agents you own or are authorised to test."
+}

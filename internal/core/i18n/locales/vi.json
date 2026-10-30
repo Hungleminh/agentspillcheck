@@ -1,0 +1,19 @@
+{
+  "app.name": "AgentSpillCheck",
+  "app.tagline": "Đưa dữ liệu giả cho AI agent để biết nó đọc gì, gửi đi đâu, có mã hóa không — không chạm dữ liệu thật.",
+  "root.short": "Kiểm tra agent AI có làm lộ dữ liệu giả không",
+  "root.long": "AgentSpillCheck đưa dữ liệu giả cho một AI agent, rồi cho bạn biết agent đó đã đọc gì, mang gì đi đâu, giữ lại ở đâu, và có mã hóa hay không.",
+  "version.label": "phiên bản",
+  "doctor.title": "Kiểm tra hệ thống",
+  "doctor.go": "Go",
+  "doctor.port": "Cổng %d",
+  "doctor.port_free": "trống",
+  "doctor.port_busy": "đang bận",
+  "doctor.data_dir": "Thư mục data",
+  "doctor.writable": "ghi được",
+  "doctor.not_writable": "không ghi được",
+  "up.starting": "Đang mở dashboard tại http://127.0.0.1:%d/",
+  "dashboard.title": "Bảng điều khiển",
+  "dashboard.empty": "Chưa có phiên nào. Tính năng tạo phiên sẽ có ở bước tiếp theo.",
+  "dashboard.responsible_use": "Chỉ kiểm thử agent bạn sở hữu hoặc được phép kiểm thử."
+}
