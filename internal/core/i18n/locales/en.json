@@ -39,5 +39,20 @@
   "report.chain": "Causal chain",
   "report.root_cause": "Root cause",
   "report.coverage": "Coverage",
-  "report.summary": "The tested session graded %s with %d points and %d findings."
+  "report.summary": "The tested session graded %s with %d points and %d findings.",
+  "cli.not_running": "No instance is running.",
+  "cli.stopped": "Instance stopped.",
+  "cli.purged": "Purged session data older than %s.",
+  "cli.update_available": "A new version is available: %s (current %s).",
+  "cli.up_to_date": "You are on the latest version (%s).",
+  "report.recommendations": "Top recommendations",
+  "report.limitations": "Session limitations: no MITM, so HTTPS content outside the sinks is not visible; no evidence does not mean safe.",
+  "report.behaviors": "Good behaviours",
+  "dashboard.sessions": "Sessions",
+  "dashboard.create_hint": "Create a session via the API or: spillcheck session new",
+  "dashboard.reports": "Reports",
+  "report.rec_s4": "Block injection following: never auto-send data after reading untrusted web/mail content.",
+  "report.rec_s3": "Ask the user before sending data externally and restrict sending-tool destinations.",
+  "report.rec_output": "Never repeat keys/passwords/PII in answers; summarise only.",
+  "report.rec_none": "No findings in this session; keep asking before sending."
 }

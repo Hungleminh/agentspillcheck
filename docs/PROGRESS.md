@@ -41,11 +41,25 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 ## Next
 
-- Step 10 of checklist 24.6: manual tests (PLAN 18.4), release
-  `v0.1.0`. Still open: Q2 (stage domain, before v0.2), Q10
-  (Dependabot auto-merge, at CI hardening). Manual Claude Desktop /
-  Windows 11 VM / macOS tests need real environments and remain
-  unverified; tagging `v0.1.0-rc1` and `v0.1.0` is the owner's call.
+- Merge the PR stack #1-#10 in order after CI is green, run the
+  manual tests (PLAN 18.4) on real Windows 11/macOS/Ubuntu setups,
+  then the owner tags `v0.1.0-rc1` and `v0.1.0`. Still open: Q2
+  (stage domain, before v0.2), Q10 (Dependabot auto-merge, at CI
+  hardening).
+
+- 2026-10-30: PR #9 CI confirmed terminal: all 4 check-runs success.
+- 2026-10-30: Step 10 on `feat/release-polish`: CLI `down`
+  (pidfile), `purge --older-than`, `update` (check-only),
+  `run --connector`, and `session list/show/expire` through the
+  running instance's API (new `/expire` endpoint); behaviour bonus
+  in scoring (+5 per good behaviour, max +10, capped, S4 still caps
+  the grade at D); HTML/Markdown reports gained a dated disclaimer,
+  transport/encoding columns, top recommendations, limitations and
+  good behaviours; dashboard uses the ADR-0006 brand with session
+  and report sections. Demo/manual end-to-end verification on real
+  agent desktops remains outstanding by environment, not by code.
+  Local evidence: `go vet ./...`, `go test ./... -count=1`
+  (21 packages ok), `go build ./...`.
 
 - 2026-10-30: PR #8 CI confirmed terminal: all 4 check-runs success.
 - 2026-10-30: Owner answered Q6 (Windows 11 only, ADR-0007) and

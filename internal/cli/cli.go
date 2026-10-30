@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -114,7 +115,7 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 	})
 
 	sessionCmd := &cobra.Command{Use: "session", Short: "session"}
-	sessionCmd.AddCommand(&cobra.Command{
+	newSessionCmd := &cobra.Command{
 		Use:   "new",
 		Short: "new",
 		Run: func(cmd *cobra.Command, _ []string) {
@@ -130,10 +131,41 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 			}
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "session_id: %s\npersona: %s\n", info.SessionID, info.PersonaSummary)
 		},
-	})
-	sessionCmd.Commands()[0].Flags().String("tier", "standard", "quick|standard|deep")
-	sessionCmd.Commands()[0].Flags().String("mode", "mcp", "mcp|browser|connector|manual")
-	sessionCmd.Commands()[0].Flags().String("agent-label", "", "")
+	}
+	for _, name := range []string{"list", "show", "expire"} {
+		sub := name
+		sessionCmd.AddCommand(&cobra.Command{
+			Use:   sub + " [session_id]",
+			Short: sub,
+			Run: func(cmd *cobra.Command, args []string) {
+				cfg := loadCfg(locale, portBase)
+				base := fmt.Sprintf("http://127.0.0.1:%d", cfg.PortBase)
+				path := "/api/v1/sessions"
+				method := http.MethodGet
+				if sub != "list" {
+					if len(args) != 1 {
+						_, _ = fmt.Fprintln(cmd.OutOrStdout(), "session_id required")
+						return
+					}
+					path += "/" + args[0]
+					if sub == "expire" {
+						path += "/expire"
+						method = http.MethodPost
+					}
+				}
+				body, err := apiCall(cmd.Context(), method, base+path)
+				if err != nil {
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), err.Error())
+					return
+				}
+				_, _ = fmt.Fprint(cmd.OutOrStdout(), body)
+			},
+		})
+	}
+	sessionCmd.AddCommand(newSessionCmd)
+	newSessionCmd.Flags().String("tier", "standard", "quick|standard|deep")
+	newSessionCmd.Flags().String("mode", "mcp", "mcp|browser|connector|manual")
+	newSessionCmd.Flags().String("agent-label", "", "")
 	root.AddCommand(sessionCmd)
 
 	baitCmd := &cobra.Command{Use: "bait", Short: "bait"}
@@ -214,6 +246,68 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 			return nil
 		},
 	}
+	purgeCmd := &cobra.Command{
+		Use:   "purge",
+		Short: "purge",
+		Run: func(cmd *cobra.Command, _ []string) {
+			cfg := loadCfg(locale, portBase)
+			tr := trFor()
+			older, _ := cmd.Flags().GetString("older-than")
+			dur, err := parseOlderThan(older)
+			if err != nil {
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), err.Error())
+				return
+			}
+			_ = purgeOld(filepath.Join(cfg.DataDir, "sessions"), time.Now().Add(-dur))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", tr.Tf("cli.purged", older))
+		},
+	}
+	purgeCmd.Flags().String("older-than", "168h", "e.g. 168h or 7d")
+	root.AddCommand(purgeCmd)
+
+	root.AddCommand(&cobra.Command{
+		Use:   "down",
+		Short: "down",
+		Run: func(cmd *cobra.Command, _ []string) {
+			cfg := loadCfg(locale, portBase)
+			tr := trFor()
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", stopInstance(cfg.DataDir, tr))
+		},
+	})
+
+	updateCmd := &cobra.Command{
+		Use:   "update",
+		Short: "update",
+		Run: func(cmd *cobra.Command, _ []string) {
+			tr := trFor()
+			latest, err := latestRelease(cmd.Context())
+			if err != nil {
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), err.Error())
+				return
+			}
+			if latest == version || latest == "" {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", tr.Tf("cli.up_to_date", version))
+				return
+			}
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", tr.Tf("cli.update_available", latest, version))
+		},
+	}
+	root.AddCommand(updateCmd)
+
+	runCmd := &cobra.Command{
+		Use:   "run [session_id]",
+		Short: "run",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg := loadCfg(locale, portBase)
+			base := fmt.Sprintf("http://127.0.0.1:%d", cfg.PortBase)
+			connectorName, _ := cmd.Flags().GetString("connector")
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "run session %s via connector %s against %s (manual/httpagent/claudecode execute through the API task loop)\n", args[0], connectorName, base)
+		},
+	}
+	runCmd.Flags().String("connector", "manual", "manual|httpagent|claudecode")
+	root.AddCommand(runCmd)
+
 	reportCmd.Flags().String("format", "json", "html|json|md|all")
 	reportCmd.Flags().String("explain-with", "", "provider name (off by default)")
 	reportCmd.Flags().String("base-url", "", "running instance base URL")
@@ -257,6 +351,9 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 			cfg := loadCfg(locale, portBase)
 			addr := fmt.Sprintf("127.0.0.1:%d", cfg.PortBase)
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", tr.Tf("up.starting", cfg.PortBase))
+			if err := os.MkdirAll(cfg.DataDir, 0o700); err == nil {
+				_ = os.WriteFile(filepath.Join(cfg.DataDir, "spillcheck.pid"), []byte(fmt.Sprintf("%d", os.Getpid())), 0o600)
+			}
 			st, err := store.Open(filepath.Join(cfg.DataDir, "data.db"))
 			if err != nil {
 				return err
@@ -335,6 +432,101 @@ func writeReports(dir string, rep report.Report, locale string) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(dir, "report.md"), []byte(md), 0o600)
+}
+
+func parseOlderThan(s string) (time.Duration, error) {
+	if strings.HasSuffix(s, "d") {
+		var days int
+		if _, err := fmt.Sscanf(s, "%dd", &days); err != nil {
+			return 0, err
+		}
+		return time.Duration(days) * 24 * time.Hour, nil
+	}
+	return time.ParseDuration(s)
+}
+
+func purgeOld(root string, cutoff time.Time) error {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, e := range entries {
+		path := filepath.Join(root, e.Name())
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		if info.IsDir() {
+			_ = purgeOld(path, cutoff)
+			_ = os.Remove(path) // only succeeds when empty
+			continue
+		}
+		if info.ModTime().Before(cutoff) {
+			_ = os.Remove(path)
+		}
+	}
+	return nil
+}
+
+func stopInstance(dataDir string, tr *i18n.Translator) string {
+	raw, err := os.ReadFile(filepath.Join(dataDir, "spillcheck.pid"))
+	if err != nil {
+		return tr.T("cli.not_running")
+	}
+	var pid int
+	if _, err := fmt.Sscanf(string(raw), "%d", &pid); err != nil || pid <= 0 {
+		return tr.T("cli.not_running")
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return tr.T("cli.not_running")
+	}
+	if err := proc.Signal(os.Interrupt); err != nil {
+		return tr.T("cli.not_running")
+	}
+	_ = os.Remove(filepath.Join(dataDir, "spillcheck.pid"))
+	return tr.T("cli.stopped")
+}
+
+func apiCall(ctx context.Context, method, url string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("api: instance returned %s", resp.Status)
+	}
+	return string(raw), nil
+}
+
+func latestRelease(ctx context.Context) (string, error) {
+	url := os.Getenv("SPILLCHECK_UPDATE_URL")
+	if url == "" {
+		url = "https://api.github.com/repos/Hungleminh/agentspillcheck/releases/latest"
+	}
+	body, err := apiCall(ctx, http.MethodGet, url)
+	if err != nil {
+		return "", err
+	}
+	var decoded struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.Unmarshal([]byte(body), &decoded); err != nil {
+		return "", err
+	}
+	return decoded.TagName, nil
 }
 
 func loadCfg(locale string, portBase int) config.Config {

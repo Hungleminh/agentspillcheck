@@ -34,6 +34,10 @@ func RenderHTML(rep Report, locale string) (string, error) {
 		"Severity": tr.T("report.severity"), "RootCause": tr.T("report.root_cause"),
 		"ChainLabel": tr.T("report.chain"), "CoverageLabel": tr.T("report.coverage"),
 		"Findings": rep.Findings, "Coverage": rep.Coverage, "Explanation": rep.Explanation,
+		"Date": rep.GeneratedAt.Format("2006-01-02"), "Recommendations": recommendations(rep, tr),
+		"Limitations": tr.T("report.limitations"), "RecLabel": tr.T("report.recommendations"),
+		"BehaviorsLabel": tr.T("report.behaviors"), "Behaviors": rep.Behaviors,
+		"TransportCol": "transport", "EncodingCol": "encoding",
 	}
 	var buf bytes.Buffer
 	t2, err := template.New("r").Funcs(template.FuncMap{
@@ -55,12 +59,15 @@ const reportHTMLSource = `<!DOCTYPE html>
 <style>body{font-family:system-ui,sans-serif;margin:2rem;max-width:70rem}h1{color:{{.Brand}}}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:.35rem .6rem}.sev{font-weight:700}</style>
 </head><body>
 <h1>AgentSpillCheck</h1><h2>{{.Title}}</h2>
-<p><em>{{.Disclaimer}}</em></p>
+<p><em>{{.Disclaimer}} ({{.Date}})</em></p>
 <p>{{.GradeLabel}}: <strong>{{.Grade}}</strong> · {{.ScoreLabel}}: <strong>{{.Score}}</strong></p>
 <p>{{.Summary}}</p>
-<table><tr><th>{{.Bait}}</th><th>{{.Exposure}}</th><th>{{.Destination}}</th><th>{{.Severity}}</th><th>{{.RootCause}}</th></tr>
-{{range .Findings}}<tr><td>{{.BaitID}} ({{.MaskedValue}})</td><td>{{.ExposureType}}</td><td>{{.Destination}}</td><td class="sev">{{.Severity}}</td><td>{{join .RootCause ", "}}</td></tr>
+<table><tr><th>{{.Bait}}</th><th>{{.Exposure}}</th><th>{{.Destination}}</th><th>{{.TransportCol}}</th><th>{{.EncodingCol}}</th><th>{{.Severity}}</th><th>{{.RootCause}}</th></tr>
+{{range .Findings}}<tr><td>{{.BaitID}} ({{.MaskedValue}})</td><td>{{.ExposureType}}</td><td>{{.Destination}}</td><td>{{.Transport}}</td><td>{{.ContentEncoding}}</td><td class="sev">{{.Severity}}</td><td>{{join .RootCause ", "}}</td></tr>
 {{end}}</table>
+<h3>{{.RecLabel}}</h3><ol>{{range .Recommendations}}<li>{{.}}</li>{{end}}</ol>
+<p>{{.Limitations}}</p>
+{{if .Behaviors}}<h3>{{.BehaviorsLabel}}</h3><ul>{{range .Behaviors}}<li>{{.}}</li>{{end}}</ul>{{end}}
 <h3>{{.ChainLabel}}</h3>
 {{range .Findings}}<p>{{.BaitID}}: {{range .Chain}}{{.Kind}}@{{.Source}} → {{end}}</p>{{end}}
 <h3>{{.CoverageLabel}}</h3><p>read={{len .Coverage.Read}} unread={{len .Coverage.Unread}}</p>
@@ -85,6 +92,17 @@ func RenderMarkdown(rep Report, locale string) (string, error) {
 		fmt.Fprintf(&b, "| %s (%s) | %s | %s | %s |\n",
 			mdEscape(f.BaitID), mdEscape(f.MaskedValue), mdEscape(f.ExposureType),
 			mdEscape(f.Destination), mdEscape(f.Severity))
+	}
+	fmt.Fprintf(&b, "\n## %s\n\n", tr.T("report.recommendations"))
+	for _, rec := range recommendations(rep, tr) {
+		fmt.Fprintf(&b, "- %s\n", rec)
+	}
+	fmt.Fprintf(&b, "\n%s\n", tr.T("report.limitations"))
+	if len(rep.Behaviors) > 0 {
+		fmt.Fprintf(&b, "\n## %s\n\n", tr.T("report.behaviors"))
+		for _, beh := range rep.Behaviors {
+			fmt.Fprintf(&b, "- %s\n", beh)
+		}
 	}
 	if rep.Explanation != "" {
 		fmt.Fprintf(&b, "\n## Explanation\n\n%s\n", rep.Explanation)
@@ -113,4 +131,28 @@ func Explain(ctx context.Context, rep Report, client Client) (string, error) {
 	prompt := "Explain this anonymised agent data-leak report in plain language. " +
 		"Do not invent findings. The score and grade are final.\n\n" + string(raw)
 	return client.Complete(ctx, prompt)
+}
+
+func recommendations(rep Report, tr interface{ T(string) string }) []string {
+	has := map[string]bool{}
+	for _, f := range rep.Findings {
+		has[f.Severity] = true
+	}
+	out := []string{}
+	if has["S4"] {
+		out = append(out, tr.T("report.rec_s4"))
+	}
+	if has["S3"] || has["S4"] {
+		out = append(out, tr.T("report.rec_s3"))
+	}
+	if len(rep.Findings) > 0 {
+		out = append(out, tr.T("report.rec_output"))
+	}
+	if len(out) == 0 {
+		out = append(out, tr.T("report.rec_none"))
+	}
+	if len(out) > 3 {
+		out = out[:3]
+	}
+	return out
 }
