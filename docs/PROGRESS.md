@@ -43,11 +43,18 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 ## Next
 
-- Merge the PR stack #1-#10 in order after CI is green, run the
-  manual tests (PLAN 18.4) on real Windows 11/macOS/Ubuntu setups,
-  then the owner tags `v0.1.0-rc1` and `v0.1.0`. Still open: Q2
-  (stage domain, before v0.2), Q10 (Dependabot auto-merge, at CI
-  hardening).
+- Merge the PR stack #1-#10 in order, run the manual tests
+  (PLAN 18.4) on real Windows 11/macOS/Ubuntu setups, then the
+  owner tags `v0.1.0-rc1` and `v0.1.0`. Still open: Q2 (stage
+  domain, before v0.2), Q10 (Dependabot auto-merge, at CI hardening).
+- MERGE BLOCKER (2026-10-30): merging was attempted in order and
+  stopped at PR #1. Its CodeQL `analyze` check fails because that
+  bootstrap branch contains no Go code yet (autobuild has nothing
+  to build), so the stack was not force-merged. The owner can
+  either accept that expected failure on PR #1, adjust the
+  required checks for it, or merge PR #1 with an admin override;
+  the rest of the stack then merges in order, retargeting each
+  base to `main` as its parent lands.
 
 - 2026-10-30: PR #9 CI confirmed terminal: all 4 check-runs success.
 - 2026-10-30: Step 10 on `feat/release-polish`: CLI `down`
