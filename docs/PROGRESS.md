@@ -31,7 +31,21 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 ## Next
 
-- Step 5 of checklist 24.6: MCP server with spill_* and stage_* tools.
+- Step 6 of checklist 24.6: scenarios T1-T3, basic detectors, first
+  JSON report golden with the demo agent. Manual Claude Desktop test
+  (PLAN 18.4) still pending a real desktop environment.
+
+- 2026-10-30: Step 5 on `feat/mcp-server`: MCP server on the official
+  Go SDK v1.2.0 (pinned because newer SDK releases require Go 1.25,
+  PLAN minimum is 1.23), tools `spill_start`, `spill_next_task`,
+  `spill_submit_result`, `spill_finish`, `spill_status` and all
+  `stage_*` tools, prompt `start_spill_check`, stdio + Streamable
+  HTTP transports (Bearer token enforced when configured), CLI
+  `spillcheck mcp serve --stdio` and `spillcheck mcp config`.
+  The backend holds one bait-seeded session in memory; scenario YAML,
+  detectors and reports are step 6+. Tested end to end with the SDK's
+  in-memory client transport. Local evidence: `go vet ./...`,
+  `go test ./... -count=1` (11 packages ok), `go build ./...`.
 
 - 2026-10-30: PR #3 CI confirmed terminal: all 4 check-runs success.
 - 2026-10-30: Step 4 on `feat/stage-drive-webmail`: `internal/event`

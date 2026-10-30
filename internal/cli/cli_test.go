@@ -53,6 +53,15 @@ func TestRootHasRequiredSubcommands(t *testing.T) {
 	}
 }
 
+func TestMCPConfigCommand(t *testing.T) {
+	got := run(t, "mcp", "config", "--client", "claude-desktop")
+	for _, want := range []string{"spillcheck", "mcpServers", "mcp", "serve"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("mcp config missing %q: %q", want, got)
+		}
+	}
+}
+
 func TestHelpIsLocalised(t *testing.T) {
 	vi := run(t, "--locale", "vi", "--help")
 	en := run(t, "--locale", "en", "--help")

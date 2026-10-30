@@ -17,6 +17,7 @@ import (
 
 	"github.com/Hungleminh/agentspillcheck/internal/core/config"
 	"github.com/Hungleminh/agentspillcheck/internal/core/i18n"
+	spillmcp "github.com/Hungleminh/agentspillcheck/internal/mcp"
 	"github.com/Hungleminh/agentspillcheck/internal/ui"
 )
 
@@ -100,6 +101,36 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 			_, _ = fmt.Fprintf(w, "data dir: %s %s\n", cfg.DataDir, dataStatus)
 		},
 	})
+
+	mcpCmd := &cobra.Command{Use: "mcp", Short: "mcp"}
+	serveCmd := &cobra.Command{
+		Use:   "serve",
+		Short: "serve",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := loadCfg(locale, portBase)
+			backend := spillmcp.NewBackend(cfg.Locale, 42)
+			stdio, _ := cmd.Flags().GetBool("stdio")
+			if stdio {
+				return spillmcp.RunStdio(cmd.Context(), backend, version)
+			}
+			addr := fmt.Sprintf("127.0.0.1:%d", cfg.PortBase)
+			srv := &http.Server{Addr: addr, Handler: spillmcp.HTTPHandler(backend, version, ""), ReadHeaderTimeout: 5 * time.Second}
+			return srv.ListenAndServe()
+		},
+	}
+	serveCmd.Flags().Bool("stdio", false, "stdio")
+	configCmd := &cobra.Command{
+		Use:   "config",
+		Short: "config",
+		Run: func(cmd *cobra.Command, _ []string) {
+			client, _ := cmd.Flags().GetString("client")
+			_ = client // same stdio snippet shape for all supported clients in v0.1
+			_, _ = fmt.Fprint(cmd.OutOrStdout(), "{\n  \"mcpServers\": {\n    \"spillcheck\": {\n      \"command\": \"spillcheck\",\n      \"args\": [\"mcp\", \"serve\", \"--stdio\"]\n    }\n  }\n}\n")
+		},
+	}
+	configCmd.Flags().String("client", "claude-desktop", "claude-desktop|cursor|claude-code")
+	mcpCmd.AddCommand(serveCmd, configCmd)
+	root.AddCommand(mcpCmd)
 
 	upCmd := &cobra.Command{
 		Use:   "up",
