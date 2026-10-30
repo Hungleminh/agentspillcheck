@@ -327,8 +327,14 @@ func (b *Backend) FetchURL(_ context.Context, rawURL string) (string, error) {
 	if !strings.Contains(rawURL, "thu-nghiem.vn") && !strings.Contains(rawURL, "thu-nghiem.local") {
 		return "", fmt.Errorf("stage_fetch_url only serves internal fake content")
 	}
-	b.emitLocked(event.KindHTTPRequest, event.SourceBlog, map[string]any{"url.full": rawURL})
-	return b.tr.T("stage.blog_body"), nil
+	attrs := map[string]any{"url.full": rawURL}
+	body := b.tr.T("stage.blog_body")
+	if strings.Contains(rawURL, "post-3") || strings.Contains(rawURL, "bai-3") {
+		attrs["spill.injection_id"] = "web_hidden_text"
+		body += "\n" + b.tr.T("stage.injection_backup")
+	}
+	b.emitLocked(event.KindCarrierOpened, event.SourceBlog, attrs)
+	return body, nil
 }
 
 // HTTPPost implements stage_http_post to fake sinks only.
