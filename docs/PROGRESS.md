@@ -12,8 +12,11 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 ## In progress
 
-- Step 1 pushed on `feat/bootstrap-repo`; PR creation link is in the
-  session report (no `gh` CLI in this environment to open it directly).
+- Step 1 PR (open): https://github.com/Hungleminh/agentspillcheck/pull/1
+  (`feat/bootstrap-repo` -> `main`).
+- Step 2 PR (open, stacked): https://github.com/Hungleminh/agentspillcheck/pull/2
+  (`feat/cli-skeleton` -> `feat/bootstrap-repo`; retarget to `main`
+  after PR #1 merges).
 - Step 2 implemented on `feat/cli-skeleton`: Go module
   `github.com/Hungleminh/agentspillcheck` (go 1.23), cobra CLI
   (`version`, `doctor`, `up`), i18n VI/EN, empty dashboard, `ci.yml`.
@@ -30,7 +33,8 @@ Updated at the end of every working session (PLAN 0.1.8).
 
 - GitHub repo settings that cannot be set from code: enable secret
   scanning + push protection, and branch protection on `main`
-  (Settings -> Code security / Branches). No `gh` CLI in this environment.
+  (Settings -> Code security / Branches). PRs #1/#2 were opened via the
+  GitHub API because no `gh` CLI is installed in this environment.
 - Q2, Q4-Q10 remain open; each will be asked when its step is reached
   (Q7/Q8 before bait/persona, Q4/Q9 before HTML report, Q6 before
   installers, Q5 before video, Q2 before v0.2, Q10 at CI hardening).
