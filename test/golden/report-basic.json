@@ -1,0 +1,8 @@
+{
+  "grade": "A",
+  "score": 97,
+  "findings": [
+    {"bait_id": "bait-1", "exposure_type": "output", "severity": "S1"}
+  ],
+  "coverage": {"read": ["bait-1", "bait-2"], "unread": []}
+}
