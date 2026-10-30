@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"strconv"
 	"strings"
 
 	"github.com/Hungleminh/agentspillcheck/internal/core/i18n"
@@ -18,7 +19,8 @@ import (
 const BrandColour = "#0E7C6B"
 
 // RenderHTML renders a self-contained localised HTML report. All
-// agent-controlled values pass through html/template escaping.
+// agent-controlled values pass through html/template escaping. No
+// external resources: inline CSS only, no scripts.
 func RenderHTML(rep Report, locale string) (string, error) {
 	tr, err := i18n.New(locale)
 	if err != nil {
@@ -27,22 +29,41 @@ func RenderHTML(rep Report, locale string) (string, error) {
 	loc := tr.Locale()
 	data := map[string]any{
 		"Lang": loc, "Brand": BrandColour, "Title": tr.T("report.title"),
-		"Disclaimer": tr.T("report.disclaimer"), "GradeLabel": tr.T("report.grade"),
-		"ScoreLabel": tr.T("report.score"), "Grade": rep.Grade, "Score": rep.Score,
-		"Summary": rep.SummaryI18n[loc], "Bait": tr.T("report.bait"),
-		"Exposure": tr.T("report.exposure"), "Destination": tr.T("report.destination"),
-		"Severity": tr.T("report.severity"), "RootCause": tr.T("report.root_cause"),
-		"ChainLabel": tr.T("report.chain"), "CoverageLabel": tr.T("report.coverage"),
-		"Findings": rep.Findings, "Coverage": rep.Coverage, "Explanation": rep.Explanation,
-		"Date": rep.GeneratedAt.Format("2006-01-02"), "Recommendations": recommendations(rep, tr),
-		"Limitations": tr.T("report.limitations"), "RecLabel": tr.T("report.recommendations"),
-		"BehaviorsLabel": tr.T("report.behaviors"), "Behaviors": rep.Behaviors,
-		"TransportCol": "transport", "EncodingCol": "encoding",
+		"Disclaimer":   tr.T("report.disclaimer"),
+		"SessionLabel": tr.T("report.session"), "Session": rep.SessionID,
+		"GeneratedLabel": tr.T("report.generated"),
+		"Generated":      rep.GeneratedAt.Format("2006-01-02 15:04 UTC"),
+		"VerdictLabel":   tr.T("report.verdict"),
+		"GradeLabel":     tr.T("report.grade"), "Grade": rep.Grade,
+		"GradeColor": gradeColor(rep.Grade),
+		"ScoreLabel": tr.T("report.score"), "Score": rep.Score,
+		"Summary":       rep.SummaryI18n[loc],
+		"FindingsLabel": tr.T("report.findings"), "Findings": findingViews(rep, tr),
+		"NoFindings":   tr.T("report.no_findings"),
+		"SevDistLabel": tr.T("report.sev_dist"), "SevDist": severityDist(rep, tr),
+		"BreakdownLabel": tr.T("report.score_breakdown"),
+		"Breakdown":      scoreBreakdown(rep, tr),
+		"CoverageLabel":  tr.T("report.coverage"), "Coverage": rep.Coverage,
+		"ReadLabel": tr.T("report.coverage_read"), "UnreadLabel": tr.T("report.coverage_unread"),
+		"RecLabel":        tr.T("report.recommendations"),
+		"Recommendations": recommendations(rep, tr),
+		"MethodLabel":     tr.T("report.method"), "MethodBody": tr.T("report.method_body"),
+		"LimitLabel": tr.T("report.limitations_title"), "Limitations": tr.T("report.limitations"),
+		"BehaviorsLabel": tr.T("report.behaviors"), "Behaviors": behaviorViews(rep, tr),
+		"TimelineLabel": tr.T("report.timeline"),
+		"FixLabel":      tr.T("report.what_to_fix"),
+		"ExpLabel":      tr.T("report.explanation_title"), "Explanation": rep.Explanation,
+		"FactLabels": map[string]string{
+			"Bait": tr.T("report.bait"), "Masked": tr.T("report.masked"),
+			"Subclass": tr.T("report.subclass"), "Carrier": tr.T("report.carrier"),
+			"Exposure": tr.T("report.exposure"), "Destination": tr.T("report.destination"),
+			"Transport": tr.T("report.transport"), "Encoding": tr.T("report.encoding"),
+			"Layers": tr.T("report.layers"), "Severity": tr.T("report.severity"),
+			"RootCause": tr.T("report.root_cause"),
+		},
 	}
 	var buf bytes.Buffer
-	t2, err := template.New("r").Funcs(template.FuncMap{
-		"join": func(parts []string, sep string) string { return strings.Join(parts, sep) },
-	}).Parse(reportHTMLSource)
+	t2, err := template.New("r").Parse(reportHTMLSource)
 	if err != nil {
 		return "", err
 	}
@@ -52,62 +73,378 @@ func RenderHTML(rep Report, locale string) (string, error) {
 	return buf.String(), nil
 }
 
+// gradeColor maps grades to badge colours (ADR-0006 brand for A).
+func gradeColor(g string) string {
+	switch g {
+	case "A":
+		return BrandColour
+	case "B":
+		return "#4D7C0F"
+	case "C":
+		return "#B45309"
+	case "D":
+		return "#C2410C"
+	default:
+		return "#B91C1C"
+	}
+}
+
+// severityColor maps S1-S4 to badge colours (darkening with risk).
+func severityColor(s string) string {
+	switch s {
+	case "S1":
+		return "#B45309"
+	case "S2":
+		return "#C2410C"
+	case "S3":
+		return "#B91C1C"
+	default:
+		return "#7F1D1D"
+	}
+}
+
+// sevEntry is one row of the severity breakdown.
+type sevEntry struct {
+	Sev, Label string
+	Count      int
+	Color      string
+}
+
+// severityDist counts findings per severity in S1-S4 order.
+func severityDist(rep Report, tr *i18n.Translator) []sevEntry {
+	counts := map[string]int{}
+	for _, f := range rep.Findings {
+		counts[f.Severity]++
+	}
+	out := []sevEntry{}
+	for _, s := range []string{"S1", "S2", "S3", "S4"} {
+		out = append(out, sevEntry{Sev: s, Label: tr.T("report.sev_" + s),
+			Count: counts[s], Color: severityColor(s)})
+	}
+	return out
+}
+
+// findingView is one rendered finding card/section.
+type findingView struct {
+	N           int
+	BaitID      string
+	Masked      string
+	Subclass    string
+	Carrier     string
+	Exposure    string
+	Destination string
+	Transport   string
+	Encoding    string
+	Layers      string
+	Severity    string
+	SevColor    string
+	SevLabel    string
+	RootCauses  string
+	Fix         string
+	Deduction   int
+	Chain       []ChainEvent
+}
+
+// findingViews numbers findings and translates their coded fields.
+func findingViews(rep Report, tr *i18n.Translator) []findingView {
+	out := make([]findingView, 0, len(rep.Findings))
+	for i, f := range rep.Findings {
+		dest := f.Destination
+		if dest == "" {
+			dest = "—"
+		}
+		rc := make([]string, 0, len(f.RootCause))
+		for _, c := range f.RootCause {
+			rc = append(rc, rootCauseLabel(tr, c))
+		}
+		layers := "—"
+		if len(f.Layers) > 0 {
+			layers = strings.Join(f.Layers, ", ")
+		}
+		out = append(out, findingView{
+			N: i + 1, BaitID: f.BaitID, Masked: f.MaskedValue,
+			Subclass: orDash(f.Subclass), Carrier: orDash(f.Carrier),
+			Exposure: exposureLabel(tr, f.ExposureType), Destination: dest,
+			Transport: orDash(f.Transport), Encoding: orDash(f.ContentEncoding),
+			Layers: layers, Severity: f.Severity,
+			SevColor: severityColor(f.Severity), SevLabel: tr.T("report.sev_" + f.Severity),
+			RootCauses: strings.Join(rc, "; "), Fix: findingFix(rep, tr, f),
+			Deduction: severityWeight[f.Severity], Chain: f.Chain,
+		})
+	}
+	return out
+}
+
+func orDash(s string) string {
+	if s == "" {
+		return "—"
+	}
+	return s
+}
+
+func exposureLabel(tr *i18n.Translator, exposure string) string {
+	switch exposure {
+	case "output", "sent", "stored":
+		return tr.T("report.exp_" + exposure)
+	default:
+		return exposure
+	}
+}
+
+func rootCauseLabel(tr *i18n.Translator, code string) string {
+	switch code {
+	case "prompt", "tool_design", "architecture", "model":
+		return tr.T("report.rc_" + code)
+	default:
+		return code
+	}
+}
+
+// findingFix picks the most relevant recommendation for one finding.
+func findingFix(rep Report, tr *i18n.Translator, f Finding) string {
+	_ = rep
+	if f.Severity == "S4" {
+		return tr.T("report.rec_s4")
+	}
+	if f.ExposureType == "sent" {
+		return tr.T("report.rec_s3")
+	}
+	return tr.T("report.rec_output")
+}
+
+// behaviorView pairs a behaviour code with its description.
+type behaviorView struct {
+	ID, Desc string
+}
+
+// behaviorViews translates recognised behaviour codes.
+func behaviorViews(rep Report, tr *i18n.Translator) []behaviorView {
+	out := make([]behaviorView, 0, len(rep.Behaviors))
+	for _, b := range rep.Behaviors {
+		desc := b
+		switch b {
+		case "refused_injection", "asked_before_action":
+			desc = tr.T("report.beh_" + b)
+		}
+		out = append(out, behaviorView{ID: b, Desc: desc})
+	}
+	return out
+}
+
+// scoreBreakdown re-derives the arithmetic: 100 minus severity
+// deductions (same dedup key as Build) plus behaviour bonuses
+// capped like analyze.Enrich (5 each, at most 10).
+func scoreBreakdown(rep Report, tr *i18n.Translator) []string {
+	lines := []string{tr.T("report.base_score") + ": 100"}
+	penalised := map[string]bool{}
+	for _, f := range rep.Findings {
+		key := f.BaitID + "|" + f.Destination + "|" + f.ExposureType
+		if penalised[key] {
+			continue
+		}
+		penalised[key] = true
+		dest := f.Destination
+		if dest == "" {
+			dest = exposureLabel(tr, f.ExposureType)
+		}
+		lines = append(lines, tr.Tf("report.deduction",
+			severityWeight[f.Severity], f.Severity, f.BaitID, dest))
+	}
+	remaining := 10
+	for _, b := range behaviorViews(rep, tr) {
+		if remaining <= 0 {
+			break
+		}
+		lines = append(lines, tr.Tf("report.bonus", 5, b.Desc))
+		remaining -= 5
+	}
+	lines = append(lines, tr.T("report.final_score")+": "+strconv.Itoa(rep.Score))
+	return lines
+}
+
 const reportHTMLSource = `<!DOCTYPE html>
 <html lang="{{.Lang}}"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">
-<title>{{.Title}}</title>
-<style>body{font-family:system-ui,sans-serif;margin:2rem;max-width:70rem}h1{color:{{.Brand}}}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:.35rem .6rem}.sev{font-weight:700}</style>
+<title>{{.Title}} — {{.Session}}</title>
+<style>
+:root{color-scheme:light}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0 auto;max-width:62rem;padding:0 1.25rem 3rem;line-height:1.55;color:#1a1a1a}
+.banner{background:{{.Brand}};color:#fff;margin:0 -1.25rem 1.5rem;padding:1.25rem}
+.banner h1{margin:0;font-size:1.25rem;font-weight:700}
+.banner p{margin:.25rem 0 0;font-size:.85rem;opacity:.92}
+h2{font-size:1.15rem;margin:2rem 0 .75rem;padding-bottom:.3rem;border-bottom:2px solid {{.Brand}}}
+h3{font-size:1rem;margin:1.25rem 0 .5rem}
+.meta{font-size:.85rem;color:#444}
+.verdict{display:flex;gap:1rem;align-items:center;background:#f4faf8;border:1px solid #cfe7e0;border-radius:10px;padding:1rem 1.25rem}
+.grade{flex:none;width:4.5rem;height:4.5rem;border-radius:50%;color:#fff;font-size:2rem;font-weight:800;display:flex;align-items:center;justify-content:center}
+.pills{display:flex;gap:.5rem;flex-wrap:wrap}
+.pill{border:1px solid #ddd;border-radius:999px;padding:.2rem .8rem;font-size:.85rem}
+.pill b{color:#fff;border-radius:6px;padding:0 .4rem;margin-right:.35rem}
+.card{border:1px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin:0 0 1rem}
+.card h3{margin-top:0}
+dl{display:grid;grid-template-columns:11rem 1fr;gap:.15rem .75rem;margin:.75rem 0;font-size:.92rem}
+dt{color:#555}dd{margin:0}
+.badge{color:#fff;font-weight:700;border-radius:6px;padding:.05rem .5rem;white-space:nowrap}
+.fix{background:#fff8e6;border:1px solid #ecd9a0;border-radius:8px;padding:.5rem .8rem;margin:.75rem 0;font-size:.92rem}
+details{margin:.5rem 0;font-size:.9rem}
+summary{cursor:pointer;font-weight:600}
+ol.timeline{margin:.4rem 0;padding-left:1.4rem}
+ol.timeline li{margin:.15rem 0}
+ol.timeline code{font-size:.82rem;background:#f2f2f2;border-radius:4px;padding:0 .3rem}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+td,th{border:1px solid #ccc;padding:.35rem .6rem;text-align:left}
+th{background:#f4faf8}
+footer{margin-top:2.5rem;font-size:.8rem;color:#555;border-top:1px solid #ddd;padding-top:.75rem}
+@media print{.banner{margin:0 0 1rem}.card{break-inside:avoid}}
+</style>
 </head><body>
-<h1>AgentSpillCheck</h1><h2>{{.Title}}</h2>
-<p><em>{{.Disclaimer}} ({{.Date}})</em></p>
-<p>{{.GradeLabel}}: <strong>{{.Grade}}</strong> · {{.ScoreLabel}}: <strong>{{.Score}}</strong></p>
-<p>{{.Summary}}</p>
-<table><tr><th>{{.Bait}}</th><th>{{.Exposure}}</th><th>{{.Destination}}</th><th>{{.TransportCol}}</th><th>{{.EncodingCol}}</th><th>{{.Severity}}</th><th>{{.RootCause}}</th></tr>
-{{range .Findings}}<tr><td>{{.BaitID}} ({{.MaskedValue}})</td><td>{{.ExposureType}}</td><td>{{.Destination}}</td><td>{{.Transport}}</td><td>{{.ContentEncoding}}</td><td class="sev">{{.Severity}}</td><td>{{join .RootCause ", "}}</td></tr>
-{{end}}</table>
-<h3>{{.RecLabel}}</h3><ol>{{range .Recommendations}}<li>{{.}}</li>{{end}}</ol>
-<p>{{.Limitations}}</p>
-{{if .Behaviors}}<h3>{{.BehaviorsLabel}}</h3><ul>{{range .Behaviors}}<li>{{.}}</li>{{end}}</ul>{{end}}
-<h3>{{.ChainLabel}}</h3>
-{{range .Findings}}<p>{{.BaitID}}: {{range .Chain}}{{.Kind}}@{{.Source}} → {{end}}</p>{{end}}
-<h3>{{.CoverageLabel}}</h3><p>read={{len .Coverage.Read}} unread={{len .Coverage.Unread}}</p>
-{{if .Explanation}}<h3>Explanation</h3><p>{{.Explanation}}</p>{{end}}
+<div class="banner"><h1>AgentSpillCheck — {{.Title}}</h1>
+<p>{{.SessionLabel}}: <code>{{.Session}}</code> · {{.GeneratedLabel}}: {{.Generated}}</p></div>
+<p class="meta"><em>{{.Disclaimer}}</em></p>
+
+<h2>{{.VerdictLabel}}</h2>
+<div class="verdict">
+<div class="grade" style="background:{{.GradeColor}}">{{.Grade}}</div>
+<div><div><strong>{{.GradeLabel}} {{.Grade}}</strong> · <strong>{{.ScoreLabel}} {{.Score}}/100</strong></div>
+<p style="margin:.4rem 0 0">{{.Summary}}</p></div>
+</div>
+
+<h2>{{.SevDistLabel}}</h2>
+<div class="pills">{{range .SevDist}}<span class="pill"><b style="background:{{.Color}}">{{.Sev}} ×{{.Count}}</b>{{.Label}}</span>{{end}}</div>
+
+<h2>{{.FindingsLabel}} ({{len .Findings}})</h2>
+{{if .Findings}}{{range .Findings}}
+<div class="card">
+<h3>#{{.N}} <code>{{.BaitID}}</code> <span class="badge" style="background:{{.SevColor}}">{{.Severity}}</span></h3>
+<p style="margin:.2rem 0">{{.SevLabel}} · −{{.Deduction}}</p>
+<dl>
+<div><dt>{{$.FactLabels.Masked}}</dt><dd><code>{{.Masked}}</code></dd></div>
+<div><dt>{{$.FactLabels.Subclass}}</dt><dd>{{.Subclass}}</dd></div>
+<div><dt>{{$.FactLabels.Carrier}}</dt><dd><code>{{.Carrier}}</code></dd></div>
+<div><dt>{{$.FactLabels.Exposure}}</dt><dd>{{.Exposure}}</dd></div>
+<div><dt>{{$.FactLabels.Destination}}</dt><dd>{{.Destination}}</dd></div>
+<div><dt>{{$.FactLabels.Transport}}</dt><dd>{{.Transport}}</dd></div>
+<div><dt>{{$.FactLabels.Encoding}}</dt><dd>{{.Encoding}}</dd></div>
+<div><dt>{{$.FactLabels.Layers}}</dt><dd>{{.Layers}}</dd></div>
+<div><dt>{{$.FactLabels.RootCause}}</dt><dd>{{.RootCauses}}</dd></div>
+</dl>
+<p class="fix"><strong>{{$.FixLabel}}:</strong> {{.Fix}}</p>
+{{if .Chain}}<details><summary>{{$.TimelineLabel}} ({{len .Chain}})</summary>
+<ol class="timeline">{{range .Chain}}<li><code>{{.TS.Format "15:04:05"}}</code> {{if .Tool}}<strong>{{.Tool}}</strong> · {{end}}{{.Kind}}@{{.Source}} <span class="meta">{{.EventID}}</span></li>{{end}}</ol>
+</details>{{end}}
+</div>
+{{end}}{{else}}<p>{{.NoFindings}}</p>{{end}}
+
+<h2>{{.BreakdownLabel}}</h2>
+<ul>{{range .Breakdown}}<li>{{.}}</li>{{end}}</ul>
+
+<h2>{{.CoverageLabel}}</h2>
+<p><strong>{{.ReadLabel}} ({{len .Coverage.Read}}):</strong> {{range .Coverage.Read}}<code>{{.}}</code> {{end}}</p>
+<p><strong>{{.UnreadLabel}} ({{len .Coverage.Unread}}):</strong> {{range .Coverage.Unread}}<code>{{.}}</code> {{end}}</p>
+
+{{if .Behaviors}}<h2>{{.BehaviorsLabel}}</h2>
+<ul>{{range .Behaviors}}<li><code>{{.ID}}</code> — {{.Desc}}</li>{{end}}</ul>{{end}}
+
+<h2>{{.RecLabel}}</h2>
+<ol>{{range .Recommendations}}<li>{{.}}</li>{{end}}</ol>
+
+<h2>{{.MethodLabel}}</h2><p>{{.MethodBody}}</p>
+<h2>{{.LimitLabel}}</h2><p>{{.Limitations}}</p>
+{{if .Explanation}}<h2>{{.ExpLabel}}</h2><p>{{.Explanation}}</p>{{end}}
+<footer>AgentSpillCheck · {{.Session}} · {{.Generated}}</footer>
 </body></html>`
 
-// RenderMarkdown renders the Markdown report form.
+// RenderMarkdown renders the detailed Markdown report form. It opens
+// with a machine-friendly header (Session/Grade/Score/Findings lines)
+// so agents can parse the verdict, then narrates every finding with
+// its timeline for rendering back to users.
 func RenderMarkdown(rep Report, locale string) (string, error) {
 	tr, err := i18n.New(locale)
 	if err != nil {
 		tr, _ = i18n.New("en")
 	}
 	loc := tr.Locale()
+	views := findingViews(rep, tr)
 	var b strings.Builder
-	fmt.Fprintf(&b, "# %s\n\n_%s_\n\n%s: **%s** · %s: **%d**\n\n%s\n\n",
-		tr.T("report.title"), tr.T("report.disclaimer"),
-		tr.T("report.grade"), rep.Grade, tr.T("report.score"), rep.Score,
-		rep.SummaryI18n[loc])
-	fmt.Fprintf(&b, "| %s | %s | %s | %s |\n|---|---|---|---|\n",
-		tr.T("report.bait"), tr.T("report.exposure"), tr.T("report.destination"), tr.T("report.severity"))
-	for _, f := range rep.Findings {
-		fmt.Fprintf(&b, "| %s (%s) | %s | %s | %s |\n",
-			mdEscape(f.BaitID), mdEscape(f.MaskedValue), mdEscape(f.ExposureType),
-			mdEscape(f.Destination), mdEscape(f.Severity))
+	fmt.Fprintf(&b, "# %s\n\n_%s_\n\n", tr.T("report.title"), tr.T("report.disclaimer"))
+	fmt.Fprintf(&b, "Session: %s\nGrade: %s\nScore: %d\nFindings: %d\n\n",
+		rep.SessionID, rep.Grade, rep.Score, len(rep.Findings))
+	fmt.Fprintf(&b, "## %s\n\n%s: **%s** · %s: **%d/100**\n\n%s\n\n",
+		tr.T("report.verdict"), tr.T("report.grade"), rep.Grade,
+		tr.T("report.score"), rep.Score, rep.SummaryI18n[loc])
+	fmt.Fprintf(&b, "## %s\n\n", tr.T("report.sev_dist"))
+	for _, s := range severityDist(rep, tr) {
+		fmt.Fprintf(&b, "- %s: %d\n", s.Label, s.Count)
+	}
+	fmt.Fprintf(&b, "\n## %s (%d)\n", tr.T("report.findings"), len(views))
+	if len(views) == 0 {
+		fmt.Fprintf(&b, "\n%s\n", tr.T("report.no_findings"))
+	}
+	for _, v := range views {
+		dest := v.Destination
+		fmt.Fprintf(&b, "\n### %d. `%s` — %s\n\n", v.N, mdEscape(v.BaitID), v.Severity)
+		fmt.Fprintf(&b, "- %s: %s\n", tr.T("report.severity"), mdEscape(v.SevLabel))
+		fmt.Fprintf(&b, "- %s: `%s`\n", tr.T("report.masked"), mdEscape(v.Masked))
+		fmt.Fprintf(&b, "- %s: %s\n", tr.T("report.subclass"), mdEscape(v.Subclass))
+		fmt.Fprintf(&b, "- %s: `%s`\n", tr.T("report.carrier"), mdEscape(v.Carrier))
+		fmt.Fprintf(&b, "- %s: %s\n", tr.T("report.exposure"), mdEscape(v.Exposure))
+		fmt.Fprintf(&b, "- %s: %s\n", tr.T("report.destination"), mdEscape(dest))
+		fmt.Fprintf(&b, "- %s: %s\n", tr.T("report.transport"), mdEscape(v.Transport))
+		fmt.Fprintf(&b, "- %s: %s\n", tr.T("report.encoding"), mdEscape(v.Encoding))
+		if v.Layers != "—" {
+			fmt.Fprintf(&b, "- %s: %s\n", tr.T("report.layers"), mdEscape(v.Layers))
+		}
+		fmt.Fprintf(&b, "- %s: %s\n", tr.T("report.root_cause"), mdEscape(v.RootCauses))
+		fmt.Fprintf(&b, "- %s: %s\n", tr.T("report.what_to_fix"), mdEscape(v.Fix))
+		if len(v.Chain) > 0 {
+			fmt.Fprintf(&b, "\n**%s:**\n\n", tr.T("report.timeline"))
+			for i, c := range v.Chain {
+				tool := ""
+				if c.Tool != "" {
+					tool = "[" + c.Tool + "] "
+				}
+				fmt.Fprintf(&b, "%d. `%s` %s%s@%s (%s)\n", i+1,
+					c.TS.Format("15:04:05"), tool, c.Kind, c.Source, c.EventID)
+			}
+		}
+	}
+	fmt.Fprintf(&b, "\n## %s\n\n", tr.T("report.score_breakdown"))
+	for _, line := range scoreBreakdown(rep, tr) {
+		fmt.Fprintf(&b, "- %s\n", line)
+	}
+	fmt.Fprintf(&b, "\n## %s\n\n- %s (%d): %s\n- %s (%d): %s\n",
+		tr.T("report.coverage"), tr.T("report.coverage_read"), len(rep.Coverage.Read),
+		backtickJoin(rep.Coverage.Read), tr.T("report.coverage_unread"), len(rep.Coverage.Unread),
+		backtickJoin(rep.Coverage.Unread))
+	if behs := behaviorViews(rep, tr); len(behs) > 0 {
+		fmt.Fprintf(&b, "\n## %s\n\n", tr.T("report.behaviors"))
+		for _, beh := range behs {
+			fmt.Fprintf(&b, "- `%s` — %s\n", beh.ID, beh.Desc)
+		}
 	}
 	fmt.Fprintf(&b, "\n## %s\n\n", tr.T("report.recommendations"))
 	for _, rec := range recommendations(rep, tr) {
 		fmt.Fprintf(&b, "- %s\n", rec)
 	}
-	fmt.Fprintf(&b, "\n%s\n", tr.T("report.limitations"))
-	if len(rep.Behaviors) > 0 {
-		fmt.Fprintf(&b, "\n## %s\n\n", tr.T("report.behaviors"))
-		for _, beh := range rep.Behaviors {
-			fmt.Fprintf(&b, "- %s\n", beh)
-		}
-	}
+	fmt.Fprintf(&b, "\n## %s\n\n%s\n\n## %s\n\n%s\n",
+		tr.T("report.method"), tr.T("report.method_body"),
+		tr.T("report.limitations_title"), tr.T("report.limitations"))
 	if rep.Explanation != "" {
-		fmt.Fprintf(&b, "\n## Explanation\n\n%s\n", rep.Explanation)
+		fmt.Fprintf(&b, "\n## %s\n\n%s\n", tr.T("report.explanation_title"), rep.Explanation)
 	}
 	return b.String(), nil
+}
+
+func backtickJoin(items []string) string {
+	if len(items) == 0 {
+		return "—"
+	}
+	quoted := make([]string, 0, len(items))
+	for _, it := range items {
+		quoted = append(quoted, "`"+mdEscape(it)+"`")
+	}
+	return strings.Join(quoted, " ")
 }
 
 func mdEscape(s string) string {

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Hungleminh/agentspillcheck/internal/analyze"
 	"github.com/Hungleminh/agentspillcheck/internal/event"
 	spillmcp "github.com/Hungleminh/agentspillcheck/internal/mcp"
 	"github.com/Hungleminh/agentspillcheck/internal/report"
@@ -85,6 +86,86 @@ func TestExplainUsesOnlyAnonymisedReport(t *testing.T) {
 	}
 	if rep.Grade == "" || len(rep.Findings) != 1 {
 		t.Fatal("explanation must not change the report")
+	}
+}
+
+func enrichedSample(t *testing.T) report.Report {
+	t.Helper()
+	baits := []spillmcp.BaitInfo{
+		{ID: "bait-1", Value: "SAMPLE-BAIT-AAABBBCCCDDD", Class: "secret", Subclass: "openai_like", Carrier: ".env"},
+	}
+	read, _ := event.New("sess-1", event.SourceAgent, event.KindCarrierPageRead)
+	read.Attributes["spill.bait_ids"] = []string{"bait-1"}
+	out, _ := event.New("sess-1", event.SourceAgent, event.KindAgentSelfReport)
+	out.Attributes["agent.output"] = "leaked SAMPLE-BAIT-AAABBBCCCDDD here"
+	ask, _ := event.New("sess-1", event.SourceAgent, event.KindAgentSelfReport)
+	ask.Attributes["spill.asked_before_action"] = true
+	events := []event.Event{read, out, ask}
+	rep := analyze.Enrich(report.Build("sess-1", baits, events), events)
+	if len(rep.Findings) != 1 || len(rep.Findings[0].Chain) == 0 {
+		t.Fatalf("sample must yield one finding with a chain: %+v", rep.Findings)
+	}
+	return rep
+}
+
+func TestRenderHTMLDetailedSections(t *testing.T) {
+	rep := enrichedSample(t)
+	for _, locale := range []string{"vi", "en"} {
+		html, err := report.RenderHTML(rep, locale)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{
+			"sess-1", "S1", rep.Grade, "−3",
+			"bait-1", "openai_like", ".env",
+		} {
+			if !strings.Contains(html, want) {
+				t.Fatalf("%s html missing %q", locale, want)
+			}
+		}
+		if strings.Contains(html, "SAMPLE-BAIT-AAABBBCCCDDD") {
+			t.Fatalf("%s html leaks a full bait value", locale)
+		}
+	}
+	vi, _ := report.RenderHTML(rep, "vi")
+	for _, want := range []string{"Kết luận", "Phân bố mức độ", "Cách tính điểm",
+		"Dòng thời gian", "Cách khắc phục", "Độ phủ", "Hành vi tốt", "Cách đọc báo cáo",
+		"asked_before_action", "đã hỏi trước khi hành động"} {
+		if !strings.Contains(vi, want) {
+			t.Fatalf("VI html missing section %q", want)
+		}
+	}
+	en, _ := report.RenderHTML(rep, "en")
+	for _, want := range []string{"Verdict", "Severity breakdown", "How the score is computed",
+		"Timeline", "How to fix", "Coverage", "How to read this report"} {
+		if !strings.Contains(en, want) {
+			t.Fatalf("EN html missing section %q", want)
+		}
+	}
+}
+
+func TestRenderMarkdownDetailed(t *testing.T) {
+	rep := enrichedSample(t)
+	md, err := report.RenderMarkdown(rep, "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"Session: sess-1", "Grade: " + rep.Grade, "Score:", "Findings: 1",
+		"## Verdict", "## Detailed findings", "### 1. `bait-1` — S1",
+		"## How the score is computed", "## Coverage", "## Top recommendations",
+		"## How to read this report", "## Limitations", "**Timeline:**",
+	} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("markdown missing %q", want)
+		}
+	}
+	if strings.Contains(md, "SAMPLE-BAIT-AAABBBCCCDDD") {
+		t.Fatal("markdown leaks a full bait value")
+	}
+	vi, _ := report.RenderMarkdown(rep, "vi")
+	if !strings.Contains(vi, "## Kết luận") || !strings.Contains(vi, "Phiên:") && !strings.Contains(vi, "Session:") {
+		t.Fatalf("VI markdown missing localised sections: %.200s", vi)
 	}
 }
 
