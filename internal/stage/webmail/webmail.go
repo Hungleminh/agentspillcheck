@@ -67,6 +67,46 @@ func (s *Service) Sent() []*Mail {
 	return out
 }
 
+// Mails lists inbox messages and records carrier.listed events.
+func (s *Service) Mails() []*Mail {
+	s.mu.RLock()
+	mails := make([]*Mail, len(s.mails))
+	copy(mails, s.mails)
+	s.mu.RUnlock()
+	for _, m := range mails {
+		s.emit(event.KindCarrierListed, map[string]any{"spill.carrier_id": m.ID, "spill.bait_ids": m.BaitIDs})
+	}
+	return mails
+}
+
+// Read returns one message and records carrier.opened.
+func (s *Service) Read(id string) (*Mail, error) {
+	s.mu.RLock()
+	m, ok := s.byID[id]
+	s.mu.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("webmail: unknown mail %q", id)
+	}
+	s.emit(event.KindCarrierOpened, map[string]any{"spill.carrier_id": m.ID, "spill.bait_ids": m.BaitIDs})
+	return m, nil
+}
+
+// Send keeps outgoing mail in the sink (never delivered) and records
+// mail.sent with a content hash, never the body.
+func (s *Service) Send(to, subject, body string) error {
+	if to == "" {
+		return fmt.Errorf("webmail: recipient is required")
+	}
+	s.mu.Lock()
+	s.seq++
+	m := &Mail{ID: fmt.Sprintf("sent-%d", s.seq), To: to, Subject: subject, Body: body}
+	s.sent = append(s.sent, m)
+	s.mu.Unlock()
+	sum := sha256.Sum256([]byte(body))
+	s.emit(event.KindMailSent, map[string]any{"spill.to": to, "spill.content_sha256": hex.EncodeToString(sum[:])})
+	return nil
+}
+
 func (s *Service) emit(kind event.Kind, attrs map[string]any) {
 	ev, err := event.New(s.session, event.SourceWebmail, kind)
 	if err != nil {

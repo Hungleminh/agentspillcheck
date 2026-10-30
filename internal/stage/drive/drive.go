@@ -181,6 +181,61 @@ func (s *Service) Handler() http.Handler {
 	return httpx.SecurityHeaders(mux)
 }
 
+// Files lists the seeded files and records carrier.listed events.
+func (s *Service) Files() []*File {
+	s.mu.RLock()
+	files := make([]*File, len(s.files))
+	copy(files, s.files)
+	s.mu.RUnlock()
+	for _, f := range files {
+		s.emit(event.KindCarrierListed, map[string]any{"spill.carrier_id": f.ID, "spill.bait_ids": f.BaitIDs})
+	}
+	return files
+}
+
+// ReadPage returns one page of a file and records carrier.page_read.
+func (s *Service) ReadPage(id string, page int) (string, int, error) {
+	f, ok := s.lookup(id)
+	if !ok {
+		return "", 0, fmt.Errorf("drive: unknown file %q", id)
+	}
+	pages := splitPages(f.Content)
+	if page < 1 {
+		page = 1
+	}
+	if page > len(pages) {
+		page = len(pages)
+	}
+	s.emit(event.KindCarrierPageRead, map[string]any{
+		"spill.carrier_id": f.ID, "spill.bait_ids": f.BaitIDs, "spill.page": page})
+	return pages[page-1], len(pages), nil
+}
+
+// Download returns the full content and records carrier.downloaded.
+func (s *Service) Download(id string) (string, error) {
+	f, ok := s.lookup(id)
+	if !ok {
+		return "", fmt.Errorf("drive: unknown file %q", id)
+	}
+	s.emit(event.KindCarrierDownloaded, map[string]any{"spill.carrier_id": f.ID, "spill.bait_ids": f.BaitIDs})
+	return f.Content, nil
+}
+
+// Write stores a file written by the agent and records it.
+func (s *Service) Write(name, content string) (*File, error) {
+	if name == "" {
+		return nil, fmt.Errorf("drive: name is required")
+	}
+	s.mu.Lock()
+	s.seq++
+	f := &File{ID: fmt.Sprintf("agent-file-%d", s.seq), Name: name, Content: content}
+	s.files = append(s.files, f)
+	s.byID[f.ID] = f
+	s.mu.Unlock()
+	s.emit(event.KindHTTPRequest, map[string]any{"http.request.method": "POST", "spill.carrier_id": f.ID})
+	return f, nil
+}
+
 func (s *Service) lookup(id string) (*File, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
