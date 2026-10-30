@@ -1,0 +1,1 @@
+Scoring and coverage show exactly where the points went.

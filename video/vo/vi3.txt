@@ -1,0 +1,1 @@
+AgentSpillCheck kiểm thử hành vi đó một cách an toàn. Nó gieo các bí mật giả, gọi là mồi, vào một không gian làm việc giả. Agent làm việc ở đó như một công việc thật, đọc tập tin và gửi thư. Các bộ phát hiện theo dõi mọi lần đọc, mọi lần gửi và mọi tập tin agent ghi ra. Cuối cùng, bạn nhận được một báo cáo có chấm điểm: đã đọc gì, lộ ở đâu và vì sao.

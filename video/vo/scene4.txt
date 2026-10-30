@@ -1,0 +1,1 @@
+Deployment takes seconds. Install the binary, or start the Docker image. Connect your agent over MCP with one config snippet. It receives tasks, works with fake drive, mail, blog, and shop tools, and finishes like a real assignment.

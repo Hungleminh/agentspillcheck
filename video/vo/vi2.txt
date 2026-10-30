@@ -1,0 +1,1 @@
+Agent tóm tắt thư mục, chuyển tiếp thư và làm theo chỉ dẫn ẩn trong trang web. Một bản tóm tắt bất cẩn có thể in cả key API. Một lần chuyển tiếp nhiệt tình có thể gửi nhầm hợp đồng. Và một chỉ dẫn ẩn có thể khiến agent gửi mọi thứ nó biết cho người lạ.
