@@ -5,19 +5,30 @@
 package cli
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
+	"sort"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/Hungleminh/agentspillcheck/internal/analyze"
+	"github.com/Hungleminh/agentspillcheck/internal/api"
+	"github.com/Hungleminh/agentspillcheck/internal/bait"
 	"github.com/Hungleminh/agentspillcheck/internal/core/config"
 	"github.com/Hungleminh/agentspillcheck/internal/core/i18n"
+	coresession "github.com/Hungleminh/agentspillcheck/internal/core/session"
+	"github.com/Hungleminh/agentspillcheck/internal/demo"
 	spillmcp "github.com/Hungleminh/agentspillcheck/internal/mcp"
+	"github.com/Hungleminh/agentspillcheck/internal/report"
+	"github.com/Hungleminh/agentspillcheck/internal/store"
 	"github.com/Hungleminh/agentspillcheck/internal/ui"
 )
 
@@ -102,6 +113,112 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 		},
 	})
 
+	sessionCmd := &cobra.Command{Use: "session", Short: "session"}
+	sessionCmd.AddCommand(&cobra.Command{
+		Use:   "new",
+		Short: "new",
+		Run: func(cmd *cobra.Command, _ []string) {
+			cfg := loadCfg(locale, portBase)
+			mgr := coresession.NewManager(nil)
+			tier, _ := cmd.Flags().GetString("tier")
+			mode, _ := cmd.Flags().GetString("mode")
+			label, _ := cmd.Flags().GetString("agent-label")
+			info, err := mgr.Create(cfg.Locale, tier, mode, label)
+			if err != nil {
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), err.Error())
+				return
+			}
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "session_id: %s\npersona: %s\n", info.SessionID, info.PersonaSummary)
+		},
+	})
+	sessionCmd.Commands()[0].Flags().String("tier", "standard", "quick|standard|deep")
+	sessionCmd.Commands()[0].Flags().String("mode", "mcp", "mcp|browser|connector|manual")
+	sessionCmd.Commands()[0].Flags().String("agent-label", "", "")
+	root.AddCommand(sessionCmd)
+
+	baitCmd := &cobra.Command{Use: "bait", Short: "bait"}
+	previewCmd := &cobra.Command{
+		Use:   "preview",
+		Short: "preview",
+		Run: func(cmd *cobra.Command, _ []string) {
+			catalog := bait.Catalog()
+			names := make([]string, 0, len(catalog))
+			for name := range catalog {
+				names = append(names, string(name))
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s (%s)\n", name, catalog[bait.Subclass(name)])
+			}
+		},
+	}
+	previewCmd.Flags().String("tier", "standard", "quick|standard|deep")
+	baitCmd.AddCommand(previewCmd)
+	root.AddCommand(baitCmd)
+
+	demoCmd := &cobra.Command{
+		Use:   "demo",
+		Short: "demo",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := loadCfg(locale, portBase)
+			backend := spillmcp.NewBackend(cfg.Locale, 42)
+			profile, _ := cmd.Flags().GetString("profile")
+			if err := demo.Run(cmd.Context(), backend, demo.Profile(profile)); err != nil {
+				return err
+			}
+			rep := analyze.Enrich(report.Build(backend.SessionID(), backend.Baits(), backend.Events()), backend.Events())
+			outDir, _ := cmd.Flags().GetString("out")
+			if outDir != "" {
+				if err := writeReports(outDir, rep, cfg.Locale); err != nil {
+					return err
+				}
+			}
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "session: %s\ngrade: %s\nscore: %d\nfindings: %d\n",
+				rep.SessionID, rep.Grade, rep.Score, len(rep.Findings))
+			return nil
+		},
+	}
+	demoCmd.Flags().String("profile", "leaky", "clean|leaky")
+	demoCmd.Flags().String("out", "", "output directory for report files")
+	root.AddCommand(demoCmd)
+
+	reportCmd := &cobra.Command{
+		Use:   "report [session_id]",
+		Short: "report",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg := loadCfg(locale, portBase)
+			format, _ := cmd.Flags().GetString("format")
+			explainWith, _ := cmd.Flags().GetString("explain-with")
+			base, _ := cmd.Flags().GetString("base-url")
+			if base == "" {
+				base = fmt.Sprintf("http://127.0.0.1:%d", cfg.PortBase)
+			}
+			body, err := fetchReport(cmd.Context(), base, args[0], format)
+			if err != nil {
+				return err
+			}
+			if explainWith != "" {
+				// Disclosure (ADR-0005): only the anonymised report
+				// JSON above leaves this machine, sent to the named
+				// provider with the user's key from the environment.
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "explain-with %s: sending only the anonymised report JSON (masked bait values) to the provider with your API key from SPILLCHECK_LLM_KEY/OPENAI_API_KEY\n", explainWith)
+				text, err := explainReport(cmd.Context(), body)
+				if err != nil {
+					return err
+				}
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "explanation: %s\n", text)
+				return nil
+			}
+			_, _ = fmt.Fprint(cmd.OutOrStdout(), body)
+			return nil
+		},
+	}
+	reportCmd.Flags().String("format", "json", "html|json|md|all")
+	reportCmd.Flags().String("explain-with", "", "provider name (off by default)")
+	reportCmd.Flags().String("base-url", "", "running instance base URL")
+	root.AddCommand(reportCmd)
+
 	mcpCmd := &cobra.Command{Use: "mcp", Short: "mcp"}
 	serveCmd := &cobra.Command{
 		Use:   "serve",
@@ -140,12 +257,84 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 			cfg := loadCfg(locale, portBase)
 			addr := fmt.Sprintf("127.0.0.1:%d", cfg.PortBase)
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", tr.Tf("up.starting", cfg.PortBase))
-			srv := &http.Server{Addr: addr, Handler: ui.NewHandler(cfg), ReadHeaderTimeout: 5 * time.Second}
+			st, err := store.Open(filepath.Join(cfg.DataDir, "data.db"))
+			if err != nil {
+				return err
+			}
+			defer func() { _ = st.Close() }()
+			mgr := coresession.NewManager(st)
+			rootMux := http.NewServeMux()
+			rootMux.Handle("/api/", api.NewHandler(mgr, version, ""))
+			rootMux.Handle("/mcp", spillmcp.HTTPHandler(spillmcp.NewBackend(cfg.Locale, 42), version, ""))
+			rootMux.Handle("/", ui.NewHandler(cfg))
+			srv := &http.Server{Addr: addr, Handler: rootMux, ReadHeaderTimeout: 5 * time.Second}
 			return srv.ListenAndServe()
 		},
 	}
 	root.AddCommand(upCmd)
 	return root
+}
+
+func fetchReport(ctx context.Context, base, sessionID, format string) (string, error) {
+	if format == "all" {
+		format = "json"
+	}
+	url := fmt.Sprintf("%s/api/v1/sessions/%s/report.%s", base, sessionID, format)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("report: instance returned %s", resp.Status)
+	}
+	return string(raw), nil
+}
+
+func explainReport(ctx context.Context, anonymisedJSON string) (string, error) {
+	var rep report.Report
+	if err := json.Unmarshal([]byte(anonymisedJSON), &rep); err != nil {
+		return "", err
+	}
+	key := os.Getenv("SPILLCHECK_LLM_KEY")
+	if key == "" {
+		key = os.Getenv("OPENAI_API_KEY")
+	}
+	client := &report.OpenAIClient{APIKey: key}
+	return report.Explain(ctx, rep, client)
+}
+
+func writeReports(dir string, rep report.Report, locale string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	raw, err := json.MarshalIndent(rep, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "report.json"), raw, 0o600); err != nil {
+		return err
+	}
+	html, err := report.RenderHTML(rep, locale)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "report.html"), []byte(html), 0o600); err != nil {
+		return err
+	}
+	md, err := report.RenderMarkdown(rep, locale)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, "report.md"), []byte(md), 0o600)
 }
 
 func loadCfg(locale string, portBase int) config.Config {

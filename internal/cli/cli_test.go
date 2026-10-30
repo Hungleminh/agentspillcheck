@@ -53,6 +53,23 @@ func TestRootHasRequiredSubcommands(t *testing.T) {
 	}
 }
 
+func TestDemoAndBaitPreviewCommands(t *testing.T) {
+	got := run(t, "demo", "--locale", "en")
+	for _, want := range []string{"grade", "score"} {
+		if !strings.Contains(strings.ToLower(got), want) {
+			t.Fatalf("demo output missing %q: %q", want, got)
+		}
+	}
+	got = run(t, "bait", "preview", "--tier", "standard")
+	if !strings.Contains(got, "openai_like") || !strings.Contains(got, "cccd") {
+		t.Fatalf("bait preview = %q", got)
+	}
+	got = run(t, "session", "new", "--locale", "en", "--tier", "standard")
+	if !strings.Contains(got, "sess-") {
+		t.Fatalf("session new = %q", got)
+	}
+}
+
 func TestMCPConfigCommand(t *testing.T) {
 	got := run(t, "mcp", "config", "--client", "claude-desktop")
 	for _, want := range []string{"spillcheck", "mcpServers", "mcp", "serve"} {
