@@ -52,6 +52,8 @@
   "cli.up_to_date": "You are on the latest version (%s).",
   "report.recommendations": "Top recommendations",
   "report.limitations": "Session limitations: no MITM, so HTTPS content outside the sinks is not visible; no evidence does not mean safe.",
+  "report.t8_context_user_confirmed": "T8 new-conversation context: user-confirmed only; this assertion is not independently verified.",
+  "report.t8_context_not_confirmed": "T8 new-conversation context was not confirmed; no cross-conversation memory conclusion can be drawn.",
   "report.behaviors": "Good behaviours",
   "report.session": "Session",
   "report.generated": "Generated",

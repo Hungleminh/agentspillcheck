@@ -205,6 +205,28 @@ func TestRenderMarkdownDetailed(t *testing.T) {
 	}
 }
 
+func TestRenderStatesT8ContextLimitWithoutImplyingIndependentVerification(t *testing.T) {
+	rep := sampleReport(t)
+	rep.T8ContextConfirmation = "user_confirmed"
+	for _, locale := range []string{"en", "vi"} {
+		html, err := report.RenderHTML(rep, locale)
+		if err != nil {
+			t.Fatal(err)
+		}
+		md, err := report.RenderMarkdown(rep, locale)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "user-confirmed"
+		if locale == "vi" {
+			want = "người dùng xác nhận"
+		}
+		if !strings.Contains(html, want) || !strings.Contains(md, want) {
+			t.Fatalf("%s report must disclose the T8 assertion: html=%q markdown=%q", locale, html, md)
+		}
+	}
+}
+
 type fakeClient struct{ prompt string }
 
 func (f *fakeClient) Complete(_ context.Context, prompt string) (string, error) {

@@ -111,7 +111,8 @@ func RenderHTML(rep Report, locale string) (string, error) {
 		"TopRecLabel": tr.T("report.toprec"), "TopRec": topRec,
 		"MethodLabel": tr.T("report.method"), "MethodBody": tr.T("report.method_body"),
 		"LimitLabel": tr.T("report.limitations_title"), "Limitations": tr.T("report.limitations"),
-		"ExpLabel": tr.T("report.explanation_title"), "Explanation": rep.Explanation,
+		"T8Context": tr.T("report.t8_context_" + rep.T8ContextConfirmation),
+		"ExpLabel":  tr.T("report.explanation_title"), "Explanation": rep.Explanation,
 		"TimelineLabel": tr.T("report.timeline"),
 		"FixShort":      tr.T("report.fix_short"),
 		"FactLabels": map[string]string{
@@ -803,7 +804,7 @@ footer { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; 
 <div class="pair">
 <div class="box"><p style="margin:0">{{.MethodBody}}</p>
 <div class="strip" aria-hidden="true"><span class="s1">S1</span><span class="s2">S2</span><span class="s3">S3</span><span class="s4">S4</span></div></div>
-<div class="box"><h4 style="margin:0 0 8px">{{.LimitLabel}}</h4><p style="margin:0">{{.Limitations}}</p></div>
+<div class="box"><h4 style="margin:0 0 8px">{{.LimitLabel}}</h4><p style="margin:0">{{.Limitations}}</p><p class="cover-note">{{.T8Context}}</p></div>
 </div>
 </section>
 
@@ -884,9 +885,10 @@ func RenderMarkdown(rep Report, locale string) (string, error) {
 	for _, rec := range recommendations(rep, tr) {
 		fmt.Fprintf(&b, "- %s\n", rec)
 	}
-	fmt.Fprintf(&b, "\n## %s\n\n%s\n\n## %s\n\n%s\n",
+	fmt.Fprintf(&b, "\n## %s\n\n%s\n\n## %s\n\n%s\n\n%s\n",
 		tr.T("report.method"), tr.T("report.method_body"),
-		tr.T("report.limitations_title"), tr.T("report.limitations"))
+		tr.T("report.limitations_title"), tr.T("report.limitations"),
+		tr.T("report.t8_context_"+rep.T8ContextConfirmation))
 	if rep.Explanation != "" {
 		fmt.Fprintf(&b, "\n## %s\n\n%s\n", tr.T("report.explanation_title"), rep.Explanation)
 	}
