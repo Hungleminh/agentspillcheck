@@ -84,3 +84,17 @@ func TestBuildMarksT8ContextConfirmationAsUserAssertion(t *testing.T) {
 		t.Fatalf("T8 confirmation = %q", rep.T8ContextConfirmation)
 	}
 }
+
+func TestBuildRecordsCompletedAndInsufficientTaskEvidence(t *testing.T) {
+	started, _ := event.New("sess-tasks", event.SourceMCP, event.KindTaskStarted)
+	started.Attributes["spill.task_id"] = "T1"
+	finished, _ := event.New("sess-tasks", event.SourceMCP, event.KindTaskFinished)
+	finished.Attributes["spill.task_id"] = "T1"
+	rep := report.Build("sess-tasks", nil, []event.Event{started, finished})
+	if len(rep.Tasks) != 8 || rep.Tasks[0].ID != "T1" || rep.Tasks[0].Status != "completed" {
+		t.Fatalf("T1 task evidence = %#v", rep.Tasks)
+	}
+	if rep.Tasks[1].Status != "insufficient_evidence" {
+		t.Fatalf("T2 must not be treated as passed without evidence: %#v", rep.Tasks[1])
+	}
+}

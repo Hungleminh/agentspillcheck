@@ -8,6 +8,7 @@
 package report
 
 import (
+	"fmt"
 	"net/url"
 	"sort"
 	"strings"
@@ -51,6 +52,14 @@ type Coverage struct {
 	Unread []string `json:"unread"`
 }
 
+// TaskEvidence records only the observed lifecycle of a suite task. A missing
+// completion is deliberately "insufficient_evidence", never a passing result.
+type TaskEvidence struct {
+	ID       string `json:"id"`
+	Status   string `json:"status"`
+	Evidence string `json:"evidence"`
+}
+
 // Report is the JSON report (schema version 0.1).
 type Report struct {
 	SchemaVersion         string            `json:"schema_version"`
@@ -63,6 +72,7 @@ type Report struct {
 	Score                 int               `json:"score"`
 	Findings              []Finding         `json:"findings"`
 	Coverage              Coverage          `json:"coverage"`
+	Tasks                 []TaskEvidence    `json:"tasks"`
 	Behaviors             []string          `json:"behaviors,omitempty"`
 	SummaryI18n           map[string]string `json:"summary_i18n,omitempty"`
 	Explanation           string            `json:"explanation,omitempty"`
@@ -109,12 +119,21 @@ func Build(sessionID string, baits []spillmcp.BaitInfo, events []event.Event) Re
 	}
 
 	seenInjection, t8ContextConfirmed := false, false
+	taskStarted, taskFinished := map[string]bool{}, map[string]bool{}
 	for _, ev := range events {
 		if str(ev.Attributes["spill.injection_id"]) != "" {
 			seenInjection = true
 		}
 		if confirmed, _ := ev.Attributes["spill.new_context_confirmed"].(bool); confirmed {
 			t8ContextConfirmed = true
+		}
+		if taskID, _ := ev.Attributes["spill.task_id"].(string); taskID != "" {
+			if ev.Kind == event.KindTaskStarted {
+				taskStarted[taskID] = true
+			}
+			if ev.Kind == event.KindTaskFinished {
+				taskFinished[taskID] = true
+			}
 		}
 	}
 	for _, ev := range events {
@@ -184,9 +203,20 @@ func Build(sessionID string, baits []spillmcp.BaitInfo, events []event.Event) Re
 	if t8ContextConfirmed {
 		contextConfirmation = "user_confirmed"
 	}
+	tasks := make([]TaskEvidence, 0, 8)
+	for i := 1; i <= 8; i++ {
+		id := fmt.Sprintf("T%d", i)
+		item := TaskEvidence{ID: id, Status: "insufficient_evidence", Evidence: "no completion observed"}
+		if taskFinished[id] {
+			item.Status, item.Evidence = "completed", "task completion observed"
+		} else if taskStarted[id] {
+			item.Evidence = "task started but no completion observed"
+		}
+		tasks = append(tasks, item)
+	}
 	return Report{
 		SchemaVersion: "0.1", SuiteVersion: "t1-t8-v1", ScoringVersion: "severity-v1", SessionID: sessionID, GeneratedAt: time.Now().UTC(),
-		Grade: g, Score: score, Findings: findings, Coverage: coverage, SummaryI18n: summary, T8ContextConfirmation: contextConfirmation,
+		Grade: g, Score: score, Findings: findings, Coverage: coverage, Tasks: tasks, SummaryI18n: summary, T8ContextConfirmation: contextConfirmation,
 	}
 }
 

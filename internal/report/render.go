@@ -28,6 +28,7 @@ func RenderHTML(rep Report, locale string) (string, error) {
 	}
 	loc := tr.Locale()
 	views := findingViews(rep, tr)
+	tasks := taskViews(rep, tr)
 	rows := scoreRows(rep, tr)
 	totalDed := 0
 	for _, r := range rows {
@@ -87,12 +88,13 @@ func RenderHTML(rep Report, locale string) (string, error) {
 		"TestedOn":   tr.T("report.tested_on"),
 		"Date":       rep.GeneratedAt.Format("2006-01-02"),
 		"Grade":      rep.Grade, "GradeCls": gradeCls,
-		"Score":         rep.Score,
-		"HeroDesc":      tr.Tf("report.hero_desc", totalDed, len(rep.Findings)),
-		"Ticks":         tickClasses(rows, rep.Score),
-		"KeptLine":      tr.Tf("report.hero_kept", rep.Score),
-		"LostLines":     legendLost(rows, tr),
-		"SevDistLabel":  tr.T("report.sev_dist"),
+		"Score":        rep.Score,
+		"HeroDesc":     tr.Tf("report.hero_desc", totalDed, len(rep.Findings)),
+		"Ticks":        tickClasses(rows, rep.Score),
+		"KeptLine":     tr.Tf("report.hero_kept", rep.Score),
+		"LostLines":    legendLost(rows, tr),
+		"SevDistLabel": tr.T("report.sev_dist"),
+		"TaskLabel":    tr.T("report.tasks"), "Tasks": tasks,
 		"Ladder":        ladderViews(rep, tr),
 		"LadderLede":    ladderLede(rep, tr),
 		"LadderLow":     tr.T("report.ladder_low"),
@@ -132,6 +134,16 @@ func RenderHTML(rep Report, locale string) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+type taskView struct{ ID, Status string }
+
+func taskViews(rep Report, tr *i18n.Translator) []taskView {
+	out := make([]taskView, 0, len(rep.Tasks))
+	for _, task := range rep.Tasks {
+		out = append(out, taskView{ID: task.ID, Status: tr.T("report.task_" + task.Status)})
+	}
+	return out
 }
 
 // sevEntry is one rung of the severity ladder.
@@ -601,6 +613,9 @@ h2 { font-size:22px; font-weight:600; margin:56px 0 12px; letter-spacing:-.01em;
 .rung[data-s="3"] .pips { color:var(--s3); } .rung[data-s="4"] .pips { color:var(--s4); }
 .rung.empty .pips { color:var(--line-strong); }
 .ladder-scale { display:flex; justify-content:space-between; font-size:13.5px; color:var(--ink-3); margin-top:8px; }
+.task-list { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:14px; }
+.task-item { border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); padding:10px 12px; font-size:14px; }
+.task-item b { display:block; font-family:Consolas,Menlo,monospace; } .task-item span { color:var(--ink-2); }
 .finding { background:var(--panel); border:1px solid var(--line); border-radius:14px; margin-bottom:18px; overflow:hidden; }
 .finding > .head { display:grid; grid-template-columns:auto 1fr auto; gap:16px; align-items:center;
   padding:18px 22px; border-bottom:1px solid var(--line); }
@@ -685,6 +700,7 @@ footer { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; 
   .grade { flex-direction:row; width:auto; min-height:0; gap:14px; padding:12px 18px; }
   .grade .letter { font-size:56px; }
   .ladder { grid-template-columns:1fr 1fr; }
+  .task-list { grid-template-columns:1fr 1fr; }
   .finding > .head { grid-template-columns:auto 1fr; }
   .pen { grid-column:1 / -1; text-align:left; }
 }
@@ -737,6 +753,8 @@ footer { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; 
 </div>
 <div class="ladder-scale"><span>{{.LadderLow}}</span><span>{{.LadderHigh}}</span></div>
 </section>
+
+<section aria-labelledby="h-tasks"><h2 id="h-tasks">{{.TaskLabel}}</h2><div class="task-list">{{range .Tasks}}<div class="task-item"><b>{{.ID}}</b><span>{{.Status}}</span></div>{{end}}</div></section>
 
 <section aria-labelledby="h-find">
 <h2 id="h-find">{{.FindingsLabel}}</h2>
@@ -834,6 +852,10 @@ func RenderMarkdown(rep Report, locale string) (string, error) {
 	fmt.Fprintf(&b, "## %s\n\n", tr.T("report.sev_dist"))
 	for _, s := range severityDist(rep, tr) {
 		fmt.Fprintf(&b, "- %s: %d\n", s.Label, s.Count)
+	}
+	fmt.Fprintf(&b, "\n## %s\n", tr.T("report.tasks"))
+	for _, task := range taskViews(rep, tr) {
+		fmt.Fprintf(&b, "- `%s`: %s\n", task.ID, task.Status)
 	}
 	fmt.Fprintf(&b, "\n## %s (%d)\n", tr.T("report.findings"), len(views))
 	if len(views) == 0 {

@@ -227,6 +227,24 @@ func TestRenderStatesT8ContextLimitWithoutImplyingIndependentVerification(t *tes
 	}
 }
 
+func TestRenderShowsTaskEvidenceWithoutCallingIncompleteTasksPassed(t *testing.T) {
+	rep := sampleReport(t)
+	rep.Tasks = []report.TaskEvidence{{ID: "T1", Status: "completed", Evidence: "task completion observed"}, {ID: "T2", Status: "insufficient_evidence", Evidence: "no completion observed"}}
+	html, err := report.RenderHTML(rep, "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	md, err := report.RenderMarkdown(rep, "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{"Task evidence", "T1", "Completed", "T2", "Insufficient evidence"} {
+		if !strings.Contains(html, value) || !strings.Contains(md, value) {
+			t.Fatalf("task report missing %q", value)
+		}
+	}
+}
+
 type fakeClient struct{ prompt string }
 
 func (f *fakeClient) Complete(_ context.Context, prompt string) (string, error) {
