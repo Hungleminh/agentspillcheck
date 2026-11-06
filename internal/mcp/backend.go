@@ -9,6 +9,7 @@ package mcp
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -59,15 +60,16 @@ type Backend struct {
 	seed   int64
 	tr     *i18n.Translator
 
-	mu       sync.Mutex
-	bus      *event.Bus
-	session  string
-	drive    *drive.Service
-	mail     *webmail.Service
-	taskIdx  int
-	done     map[string]bool
-	finished bool
-	baits    []BaitInfo
+	mu                  sync.Mutex
+	bus                 *event.Bus
+	session             string
+	drive               *drive.Service
+	mail                *webmail.Service
+	taskIdx             int
+	done                map[string]bool
+	finished            bool
+	newContextConfirmed bool
+	baits               []BaitInfo
 }
 
 // BaitInfo describes one seeded bait for detector/report wiring.
@@ -104,7 +106,10 @@ func NewBackend(locale string, seed int64) *Backend {
 	return &Backend{locale: tr.Locale(), seed: seed, tr: tr, done: map[string]bool{}}
 }
 
-var taskKeys = []string{"task.t1", "task.t2", "task.t3"}
+var taskKeys = []string{
+	"task.t1", "task.t2", "task.t3", "task.t4",
+	"task.t5", "task.t6", "task.t7", "task.t8",
+}
 
 // Start creates a session with a persona and a bait-seeded stage.
 func (b *Backend) Start(_ context.Context, _ string) (StartResult, error) {
@@ -118,10 +123,15 @@ func (b *Backend) Start(_ context.Context, _ string) (StartResult, error) {
 		}, nil
 	}
 	b.bus = event.NewBus()
-	b.session = fmt.Sprintf("sess-%d", b.seed)
+	sessionID, err := newSessionID()
+	if err != nil {
+		return StartResult{}, err
+	}
+	b.session = sessionID
 	b.taskIdx = 0
 	b.done = map[string]bool{}
 	b.finished = false
+	b.newContextConfirmed = false
 	b.drive = drive.New(b.session, b.bus, b.locale)
 	b.mail = webmail.New(b.session, b.bus, b.locale)
 	b.seedStage()
@@ -130,6 +140,16 @@ func (b *Backend) Start(_ context.Context, _ string) (StartResult, error) {
 		PersonaSummary: b.personaSummaryLocked(),
 		Instructions:   b.tr.T("mcp.instructions"),
 	}, nil
+}
+
+// newSessionID uses CSPRNG bytes rather than the deterministic scenario seed.
+// The seed remains only for repeatable fake-bait generation inside one session.
+func newSessionID() (string, error) {
+	bytes := make([]byte, 18)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("generate session id: %w", err)
+	}
+	return "sess-" + hex.EncodeToString(bytes), nil
 }
 
 func (b *Backend) personaSummaryLocked() string {
@@ -183,11 +203,31 @@ func (b *Backend) NextTask(_ context.Context) (TaskResult, error) {
 	if b.taskIdx >= len(taskKeys) {
 		return TaskResult{Done: true}, nil
 	}
+	if b.taskIdx == len(taskKeys)-1 && !b.newContextConfirmed {
+		return TaskResult{}, fmt.Errorf("mcp: T8 requires confirmation that the agent is in a new conversation")
+	}
 	key := taskKeys[b.taskIdx]
 	id := fmt.Sprintf("T%d", b.taskIdx+1)
 	b.taskIdx++
 	b.emitLocked(event.KindTaskStarted, event.SourceMCP, map[string]any{"spill.task_id": id})
 	return TaskResult{TaskID: id, Prompt: b.tr.T(key)}, nil
+}
+
+// ConfirmNewContext records the owner's assertion that the external agent now
+// runs in a new conversation. This is intentionally not treated as an
+// independently verifiable signal in the final report.
+func (b *Backend) ConfirmNewContext(_ context.Context) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := b.requireSession(); err != nil {
+		return err
+	}
+	if b.taskIdx < len(taskKeys)-1 {
+		return fmt.Errorf("mcp: new-context confirmation is only available before T8")
+	}
+	b.newContextConfirmed = true
+	b.emitLocked(event.KindTaskStarted, event.SourceMCP, map[string]any{"spill.new_context_confirmed": true})
+	return nil
 }
 
 // SubmitResult records the agent's self-report for a task.
@@ -196,6 +236,12 @@ func (b *Backend) SubmitResult(_ context.Context, taskID, summary string) error 
 	defer b.mu.Unlock()
 	if err := b.requireSession(); err != nil {
 		return err
+	}
+	if b.taskIdx == 0 || taskID != fmt.Sprintf("T%d", b.taskIdx) {
+		return fmt.Errorf("mcp: result for %s is not the active task", taskID)
+	}
+	if b.done[taskID] {
+		return fmt.Errorf("mcp: result for %s was already submitted", taskID)
 	}
 	if len(summary) > 4096 {
 		summary = summary[:4096]

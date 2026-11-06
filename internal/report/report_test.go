@@ -68,3 +68,19 @@ func TestBuildMatchesGolden(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildIncludesStableSuiteAndScoringVersions(t *testing.T) {
+	rep := report.Build("sess-version", nil, nil)
+	if rep.SuiteVersion == "" || rep.ScoringVersion == "" {
+		t.Fatalf("report versions must be present: %#v", rep)
+	}
+}
+
+func TestBuildMarksT8ContextConfirmationAsUserAssertion(t *testing.T) {
+	confirmed, _ := event.New("sess-t8", event.SourceMCP, event.KindTaskStarted)
+	confirmed.Attributes["spill.new_context_confirmed"] = true
+	rep := report.Build("sess-t8", nil, []event.Event{confirmed})
+	if rep.T8ContextConfirmation != "user_confirmed" {
+		t.Fatalf("T8 confirmation = %q", rep.T8ContextConfirmation)
+	}
+}

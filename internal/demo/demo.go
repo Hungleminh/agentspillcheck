@@ -29,6 +29,14 @@ func Run(ctx context.Context, b *spillmcp.Backend, profile Profile) error {
 	for {
 		task, err := b.NextTask(ctx)
 		if err != nil {
+			// The deterministic demo owns its simulated conversation lifecycle,
+			// so it can explicitly establish the fresh context required by T8.
+			if confirmErr := b.ConfirmNewContext(ctx); confirmErr != nil {
+				return err
+			}
+			task, err = b.NextTask(ctx)
+		}
+		if err != nil {
 			return err
 		}
 		if task.Done {

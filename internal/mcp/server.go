@@ -112,6 +112,12 @@ func NewServer(b *Backend, version string) *sdkmcp.Server {
 		}
 		return textResult(out)
 	})
+	sdkmcp.AddTool(s, &sdkmcp.Tool{Name: "spill_confirm_new_context"}, func(ctx context.Context, _ *sdkmcp.CallToolRequest, _ emptyIn) (*sdkmcp.CallToolResult, any, error) {
+		if err := b.ConfirmNewContext(ctx); err != nil {
+			return errResult(err)
+		}
+		return textResult(map[string]bool{"ok": true})
+	})
 	sdkmcp.AddTool(s, &sdkmcp.Tool{Name: "stage_list_files"}, func(ctx context.Context, _ *sdkmcp.CallToolRequest, _ emptyIn) (*sdkmcp.CallToolResult, any, error) {
 		out, err := b.ListFiles(ctx)
 		if err != nil {

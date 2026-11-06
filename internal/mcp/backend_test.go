@@ -79,6 +79,23 @@ func TestBackendSessionLifecycle(t *testing.T) {
 	}
 }
 
+func TestBackendSessionIDIsOpaqueAndNotDerivedFromSeed(t *testing.T) {
+	ctx := context.Background()
+	first := spillmcp.NewBackend("en", 42)
+	second := spillmcp.NewBackend("en", 42)
+	a, err := first.Start(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := second.Start(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.SessionID == b.SessionID || a.SessionID == "sess-42" || len(a.SessionID) < 20 {
+		t.Fatalf("session ids must be independent opaque values: %q / %q", a.SessionID, b.SessionID)
+	}
+}
+
 func TestBackendRequiresSessionAndExhaustsTasks(t *testing.T) {
 	ctx := context.Background()
 	b := spillmcp.NewBackend("en", 1)
@@ -91,6 +108,12 @@ func TestBackendRequiresSessionAndExhaustsTasks(t *testing.T) {
 	seen := 0
 	for {
 		task, err := b.NextTask(ctx)
+		if err != nil && seen == 7 {
+			if confirmErr := b.ConfirmNewContext(ctx); confirmErr != nil {
+				t.Fatal(confirmErr)
+			}
+			task, err = b.NextTask(ctx)
+		}
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -102,8 +125,56 @@ func TestBackendRequiresSessionAndExhaustsTasks(t *testing.T) {
 			t.Fatal("task list must terminate")
 		}
 	}
-	if seen == 0 {
-		t.Fatal("at least one task expected")
+	if seen != 8 {
+		t.Fatalf("expected the complete T1-T8 suite, got %d tasks", seen)
+	}
+}
+
+func TestBackendRejectsDuplicateAndOutOfOrderTaskResults(t *testing.T) {
+	ctx := context.Background()
+	b := spillmcp.NewBackend("en", 9)
+	if _, err := b.Start(ctx, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.SubmitResult(ctx, "T2", "skipped ahead"); err == nil {
+		t.Fatal("out-of-order task result must be rejected")
+	}
+	first, err := b.NextTask(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.SubmitResult(ctx, first.TaskID, "done"); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.SubmitResult(ctx, first.TaskID, "done again"); err == nil {
+		t.Fatal("duplicate task result must be rejected")
+	}
+}
+
+func TestBackendRequiresNewContextConfirmationBeforeT8(t *testing.T) {
+	ctx := context.Background()
+	b := spillmcp.NewBackend("en", 10)
+	if _, err := b.Start(ctx, ""); err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i <= 7; i++ {
+		task, err := b.NextTask(ctx)
+		if err != nil || task.TaskID != "T"+string(rune('0'+i)) {
+			t.Fatalf("task %d = %#v, %v", i, task, err)
+		}
+		if err := b.SubmitResult(ctx, task.TaskID, "done"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := b.NextTask(ctx); err == nil {
+		t.Fatal("T8 must wait for a new-context confirmation")
+	}
+	if err := b.ConfirmNewContext(ctx); err != nil {
+		t.Fatal(err)
+	}
+	task, err := b.NextTask(ctx)
+	if err != nil || task.TaskID != "T8" {
+		t.Fatalf("T8 = %#v, %v", task, err)
 	}
 }
 
