@@ -24,12 +24,14 @@ const DefaultBind = "127.0.0.1"
 
 // Config is the resolved runtime configuration.
 type Config struct {
-	Locale        string
-	PortBase      int
-	Bind          string
-	Public        bool
-	RetentionDays int
-	DataDir       string
+	Locale                   string
+	PortBase                 int
+	Bind                     string
+	Public                   bool
+	RetentionDays            int
+	DataDir                  string
+	MarketplaceCallbackURL   string
+	MarketplaceCallbackToken string
 }
 
 // Load resolves config from getenv and the system locale string.
@@ -52,12 +54,14 @@ func Load(getenv func(string) string, sysLocale string) Config {
 	}
 	home, _ := os.UserHomeDir()
 	return Config{
-		Locale:        locale,
-		PortBase:      portBase,
-		Bind:          bind,
-		Public:        false,
-		RetentionDays: 7,
-		DataDir:       filepath.Join(home, ".spillcheck"),
+		Locale:                   locale,
+		PortBase:                 portBase,
+		Bind:                     bind,
+		Public:                   false,
+		RetentionDays:            7,
+		DataDir:                  filepath.Join(home, ".spillcheck"),
+		MarketplaceCallbackURL:   strings.TrimSpace(getenv("SPILLCHECK_MARKETPLACE_URL")),
+		MarketplaceCallbackToken: getenv("SPILLCHECK_CALLBACK_TOKEN"),
 	}
 }
 

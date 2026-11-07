@@ -60,16 +60,28 @@ type startIn struct {
 // handler is reached; this component only prevents two accepted tokens from
 // ever sharing state inside the engine process.
 type TokenBackends struct {
-	mu       sync.Mutex
-	locale   string
-	seed     int64
-	backends map[string]*Backend
+	mu         sync.Mutex
+	locale     string
+	seed       int64
+	backends   map[string]tokenBackend
+	onComplete func(context.Context, string, *Backend) error
+}
+
+type tokenBackend struct {
+	backend              *Backend
+	marketplaceSessionID string
 }
 
 // NewTokenBackends creates the backend registry used by the private HTTP MCP
 // listener. It deliberately does not expose lookup by session ID.
 func NewTokenBackends(locale string, seed int64) *TokenBackends {
-	return &TokenBackends{locale: locale, seed: seed, backends: make(map[string]*Backend)}
+	return &TokenBackends{locale: locale, seed: seed, backends: make(map[string]tokenBackend)}
+}
+
+func (r *TokenBackends) SetCompletionCallback(callback func(context.Context, string, *Backend) error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.onComplete = callback
 }
 
 // ForToken returns a stable backend for a non-empty bearer token.
@@ -79,12 +91,26 @@ func (r *TokenBackends) ForToken(token string) *Backend {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if backend := r.backends[token]; backend != nil {
-		return backend
+	if entry, ok := r.backends[token]; ok {
+		return entry.backend
 	}
 	backend := NewBackend(r.locale, r.seed)
-	r.backends[token] = backend
+	r.backends[token] = tokenBackend{backend: backend}
 	return backend
+}
+
+func (r *TokenBackends) bind(token, marketplaceSessionID string) (*Backend, string, func(context.Context, string, *Backend) error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	entry, ok := r.backends[token]
+	if !ok {
+		entry.backend = NewBackend(r.locale, r.seed)
+	}
+	if entry.marketplaceSessionID == "" {
+		entry.marketplaceSessionID = marketplaceSessionID
+	}
+	r.backends[token] = entry
+	return entry.backend, entry.marketplaceSessionID, r.onComplete
 }
 
 func textResult(v any) (*sdkmcp.CallToolResult, any, error) {
@@ -108,13 +134,19 @@ func errResult(err error) (*sdkmcp.CallToolResult, any, error) {
 
 // NewServer builds an MCP server exposing spill_* and stage_* tools
 // (PLAN 10.1) backed by b. Tool names use only [a-zA-Z0-9_].
-func NewServer(b *Backend, version string) *sdkmcp.Server {
+func NewServer(b *Backend, version string) *sdkmcp.Server { return newServer(b, version, nil) }
+func newServer(b *Backend, version string, complete func(context.Context, *Backend) error) *sdkmcp.Server {
 	s := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "agentspillcheck", Version: version}, nil)
 
 	sdkmcp.AddTool(s, &sdkmcp.Tool{Name: "spill_start"}, func(ctx context.Context, _ *sdkmcp.CallToolRequest, in startIn) (*sdkmcp.CallToolResult, any, error) {
 		out, err := b.Start(ctx, in.SessionToken)
 		if err != nil {
 			return errResult(err)
+		}
+		if complete != nil {
+			if err := complete(ctx, b); err != nil {
+				return errResult(err)
+			}
 		}
 		return textResult(out)
 	})
@@ -283,7 +315,13 @@ func TokenHTTPHandler(backends *TokenBackends, version string) http.Handler {
 		if !ok {
 			return nil
 		}
-		return NewServer(backends.ForToken(token), version)
+		backend, sessionID, complete := backends.bind(token, req.Header.Get("X-Spillcheck-Session-Id"))
+		return newServer(backend, version, func(ctx context.Context, backend *Backend) error {
+			if complete == nil || sessionID == "" {
+				return nil
+			}
+			return complete(ctx, sessionID, backend)
+		})
 	}, nil)
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if _, ok := bearerToken(req); !ok {

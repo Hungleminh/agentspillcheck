@@ -23,6 +23,7 @@ import (
 	"github.com/Hungleminh/agentspillcheck/internal/analyze"
 	"github.com/Hungleminh/agentspillcheck/internal/api"
 	"github.com/Hungleminh/agentspillcheck/internal/bait"
+	"github.com/Hungleminh/agentspillcheck/internal/completion"
 	"github.com/Hungleminh/agentspillcheck/internal/core/config"
 	"github.com/Hungleminh/agentspillcheck/internal/core/i18n"
 	coresession "github.com/Hungleminh/agentspillcheck/internal/core/session"
@@ -325,7 +326,9 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 				return spillmcp.RunStdio(cmd.Context(), backend, version)
 			}
 			addr := fmt.Sprintf("%s:%d", cfg.Bind, cfg.PortBase)
-			srv := &http.Server{Addr: addr, Handler: spillmcp.TokenHTTPHandler(spillmcp.NewTokenBackends(cfg.Locale, 42), version), ReadHeaderTimeout: 5 * time.Second}
+			backends := spillmcp.NewTokenBackends(cfg.Locale, 42)
+			backends.SetCompletionCallback(completion.Reporter{URL: cfg.MarketplaceCallbackURL, Token: cfg.MarketplaceCallbackToken}.Complete)
+			srv := &http.Server{Addr: addr, Handler: spillmcp.TokenHTTPHandler(backends, version), ReadHeaderTimeout: 5 * time.Second}
 			return srv.ListenAndServe()
 		},
 	}
@@ -362,7 +365,9 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 			mgr := coresession.NewManager(st)
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/api/", api.NewHandler(mgr, version, ""))
-			rootMux.Handle("/mcp", spillmcp.TokenHTTPHandler(spillmcp.NewTokenBackends(cfg.Locale, 42), version))
+			backends := spillmcp.NewTokenBackends(cfg.Locale, 42)
+			backends.SetCompletionCallback(completion.Reporter{URL: cfg.MarketplaceCallbackURL, Token: cfg.MarketplaceCallbackToken}.Complete)
+			rootMux.Handle("/mcp", spillmcp.TokenHTTPHandler(backends, version))
 			rootMux.Handle("/", ui.NewHandler(cfg))
 			srv := &http.Server{Addr: addr, Handler: rootMux, ReadHeaderTimeout: 5 * time.Second}
 			return srv.ListenAndServe()
