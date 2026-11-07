@@ -143,11 +143,6 @@ func newServer(b *Backend, version string, complete func(context.Context, *Backe
 		if err != nil {
 			return errResult(err)
 		}
-		if complete != nil {
-			if err := complete(ctx, b); err != nil {
-				return errResult(err)
-			}
-		}
 		return textResult(out)
 	})
 	sdkmcp.AddTool(s, &sdkmcp.Tool{Name: "spill_next_task"}, func(ctx context.Context, _ *sdkmcp.CallToolRequest, _ emptyIn) (*sdkmcp.CallToolResult, any, error) {
@@ -167,6 +162,11 @@ func newServer(b *Backend, version string, complete func(context.Context, *Backe
 		out, err := b.Finish(ctx)
 		if err != nil {
 			return errResult(err)
+		}
+		if complete != nil {
+			if err := complete(ctx, b); err != nil {
+				return errResult(err)
+			}
 		}
 		return textResult(out)
 	})
