@@ -6,6 +6,8 @@ package mcp_test
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -13,6 +15,48 @@ import (
 
 	spillmcp "github.com/Hungleminh/agentspillcheck/internal/mcp"
 )
+
+type bearerTransport struct{ token string }
+
+func (t bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	copy := req.Clone(req.Context())
+	copy.Header = req.Header.Clone()
+	copy.Header.Set("Authorization", "Bearer "+t.token)
+	return http.DefaultTransport.RoundTrip(copy)
+}
+
+func TestTokenBackendsAreStableAndIsolated(t *testing.T) {
+	backends := spillmcp.NewTokenBackends("en", 42)
+	first := backends.ForToken("bearer-one")
+	if first == nil {
+		t.Fatal("first token must receive a backend")
+	}
+	if got := backends.ForToken("bearer-one"); got != first {
+		t.Fatal("the same token must keep its backend")
+	}
+	if got := backends.ForToken("bearer-two"); got == first {
+		t.Fatal("different tokens must never share a backend")
+	}
+	if got := backends.ForToken(""); got != nil {
+		t.Fatal("an empty token must not receive a backend")
+	}
+}
+
+func TestTokenHTTPHandlerServesARealStreamableMCPClient(t *testing.T) {
+	server := httptest.NewServer(spillmcp.TokenHTTPHandler(spillmcp.NewTokenBackends("en", 42), "test"))
+	defer server.Close()
+	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "streamable-test", Version: "test"}, nil)
+	transport := &sdkmcp.StreamableClientTransport{Endpoint: server.URL, HTTPClient: &http.Client{Transport: bearerTransport{token: "token-a"}}}
+	session, err := client.Connect(context.Background(), transport, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	result := call(t, session, context.Background(), "spill_start", nil)
+	if !strings.Contains(result, "session_id") {
+		t.Fatalf("spill_start = %q", result)
+	}
+}
 
 func connect(t *testing.T) (*sdkmcp.ClientSession, context.Context) {
 	t.Helper()

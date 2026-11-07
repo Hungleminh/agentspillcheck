@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -52,6 +53,38 @@ type queryIn struct {
 }
 type startIn struct {
 	SessionToken string `json:"session_token,omitempty"`
+}
+
+// TokenBackends owns one in-memory fake environment per Marketplace-issued
+// bearer token. The Marketplace validates and revokes that token before this
+// handler is reached; this component only prevents two accepted tokens from
+// ever sharing state inside the engine process.
+type TokenBackends struct {
+	mu       sync.Mutex
+	locale   string
+	seed     int64
+	backends map[string]*Backend
+}
+
+// NewTokenBackends creates the backend registry used by the private HTTP MCP
+// listener. It deliberately does not expose lookup by session ID.
+func NewTokenBackends(locale string, seed int64) *TokenBackends {
+	return &TokenBackends{locale: locale, seed: seed, backends: make(map[string]*Backend)}
+}
+
+// ForToken returns a stable backend for a non-empty bearer token.
+func (r *TokenBackends) ForToken(token string) *Backend {
+	if strings.TrimSpace(token) == "" {
+		return nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if backend := r.backends[token]; backend != nil {
+		return backend
+	}
+	backend := NewBackend(r.locale, r.seed)
+	r.backends[token] = backend
+	return backend
 }
 
 func textResult(v any) (*sdkmcp.CallToolResult, any, error) {
@@ -239,4 +272,34 @@ func HTTPHandler(b *Backend, version, token string) http.Handler {
 		}
 		handler.ServeHTTP(w, r)
 	})
+}
+
+// TokenHTTPHandler serves Streamable HTTP for bearer tokens already verified
+// by the Marketplace tunnel. It returns 401 before allocating any fake data
+// when the bearer header is absent or malformed.
+func TokenHTTPHandler(backends *TokenBackends, version string) http.Handler {
+	handler := sdkmcp.NewStreamableHTTPHandler(func(req *http.Request) *sdkmcp.Server {
+		token, ok := bearerToken(req)
+		if !ok {
+			return nil
+		}
+		return NewServer(backends.ForToken(token), version)
+	}, nil)
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if _, ok := bearerToken(req); !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		handler.ServeHTTP(w, req)
+	})
+}
+
+func bearerToken(req *http.Request) (string, bool) {
+	const prefix = "Bearer "
+	authorization := req.Header.Get("Authorization")
+	if !strings.HasPrefix(authorization, prefix) {
+		return "", false
+	}
+	token := strings.TrimSpace(strings.TrimPrefix(authorization, prefix))
+	return token, token != ""
 }

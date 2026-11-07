@@ -319,13 +319,13 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 		Short: "serve",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg := loadCfg(locale, portBase)
-			backend := spillmcp.NewBackend(cfg.Locale, 42)
 			stdio, _ := cmd.Flags().GetBool("stdio")
 			if stdio {
+				backend := spillmcp.NewBackend(cfg.Locale, 42)
 				return spillmcp.RunStdio(cmd.Context(), backend, version)
 			}
 			addr := fmt.Sprintf("%s:%d", cfg.Bind, cfg.PortBase)
-			srv := &http.Server{Addr: addr, Handler: spillmcp.HTTPHandler(backend, version, ""), ReadHeaderTimeout: 5 * time.Second}
+			srv := &http.Server{Addr: addr, Handler: spillmcp.TokenHTTPHandler(spillmcp.NewTokenBackends(cfg.Locale, 42), version), ReadHeaderTimeout: 5 * time.Second}
 			return srv.ListenAndServe()
 		},
 	}
@@ -362,7 +362,7 @@ func NewRootCommand(version string, out io.Writer) *cobra.Command {
 			mgr := coresession.NewManager(st)
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/api/", api.NewHandler(mgr, version, ""))
-			rootMux.Handle("/mcp", spillmcp.HTTPHandler(spillmcp.NewBackend(cfg.Locale, 42), version, ""))
+			rootMux.Handle("/mcp", spillmcp.TokenHTTPHandler(spillmcp.NewTokenBackends(cfg.Locale, 42), version))
 			rootMux.Handle("/", ui.NewHandler(cfg))
 			srv := &http.Server{Addr: addr, Handler: rootMux, ReadHeaderTimeout: 5 * time.Second}
 			return srv.ListenAndServe()
