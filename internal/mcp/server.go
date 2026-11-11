@@ -12,6 +12,8 @@ import (
 	"sync"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/Hungleminh/agentspillcheck/internal/core/i18n"
 )
 
 // Instructions returns the localised start instructions.
@@ -100,12 +102,16 @@ func (r *TokenBackends) ForToken(token string) *Backend {
 	return backend
 }
 
-func (r *TokenBackends) bind(token, marketplaceSessionID string) (*Backend, string, func(context.Context, string, *Backend) error) {
+func (r *TokenBackends) bind(token, marketplaceSessionID, promptLocale string) (*Backend, string, func(context.Context, string, *Backend) error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	entry, ok := r.backends[token]
-	if !ok {
-		entry.backend = NewBackend(r.locale, r.seed)
+	locale := strings.TrimSpace(promptLocale)
+	if locale == "" {
+		locale = r.locale
+	}
+	if !ok || (entry.backend != nil && entry.backend.SessionID() == "" && entry.backend.Locale() != i18n.Detect(locale)) {
+		entry.backend = NewBackend(locale, r.seed)
 	}
 	if strings.TrimSpace(marketplaceSessionID) != "" {
 		entry.marketplaceSessionID = strings.TrimSpace(marketplaceSessionID)
@@ -323,7 +329,7 @@ func TokenHTTPHandler(backends *TokenBackends, version string) http.Handler {
 		if !ok {
 			return nil
 		}
-		backend, _, complete := backends.bind(token, req.Header.Get("X-Spillcheck-Session-Id"))
+		backend, _, complete := backends.bind(token, req.Header.Get("X-Spillcheck-Session-Id"), req.Header.Get("X-Spillcheck-Locale"))
 		return newServer(backend, version, func(ctx context.Context, backend *Backend) error {
 			if complete == nil {
 				return nil
@@ -343,7 +349,7 @@ func TokenHTTPHandler(backends *TokenBackends, version string) http.Handler {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-		backends.bind(token, req.Header.Get("X-Spillcheck-Session-Id"))
+		backends.bind(token, req.Header.Get("X-Spillcheck-Session-Id"), req.Header.Get("X-Spillcheck-Locale"))
 		handler.ServeHTTP(w, req)
 	})
 }

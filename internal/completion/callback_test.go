@@ -28,7 +28,7 @@ func TestReporterPostsOnlyRedactedArtifacts(t *testing.T) {
 		if strings.Contains(string(body), "sk-spill-") {
 			t.Fatal("callback must not contain full bait")
 		}
-		if !strings.Contains(string(body), "report_json") || !strings.Contains(string(body), "report_html") || !strings.Contains(string(body), "report_markdown") {
+		if !strings.Contains(string(body), "report_json") || !strings.Contains(string(body), "report_html") || !strings.Contains(string(body), "report_markdown") || !strings.Contains(string(body), "Session grade") {
 			t.Fatal("missing report artifact")
 		}
 		w.WriteHeader(http.StatusOK)
@@ -36,6 +36,26 @@ func TestReporterPostsOnlyRedactedArtifacts(t *testing.T) {
 	defer server.Close()
 	if err := (completion.Reporter{URL: server.URL, Token: "callback-token"}).Complete(context.Background(), "market-session", backend); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestReporterRendersHTMLInTheBackendLocale(t *testing.T) {
+	backend := spillmcp.NewBackend("vi", 7)
+	if _, err := backend.Start(context.Background(), ""); err != nil {
+		t.Fatal(err)
+	}
+	var body string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		raw, _ := io.ReadAll(req.Body)
+		body = string(raw)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	if err := (completion.Reporter{URL: server.URL, Token: "callback-token"}).Complete(context.Background(), "market-session", backend); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(body, "Báo cáo AgentSpillCheck") || strings.Contains(body, "Session grade") {
+		t.Fatalf("vietnamese backend must render a vietnamese report, got %s", body)
 	}
 }
 

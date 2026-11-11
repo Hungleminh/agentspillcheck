@@ -90,6 +90,9 @@ func (b *Backend) Baits() []BaitInfo {
 	return out
 }
 
+// Locale is the prompt language used for task text and the rendered report.
+func (b *Backend) Locale() string { return b.locale }
+
 // SessionID returns the current session ID ("" before Start).
 func (b *Backend) SessionID() string {
 	b.mu.Lock()

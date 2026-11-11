@@ -30,11 +30,12 @@ func (r Reporter) Complete(ctx context.Context, marketplaceSessionID string, bac
 	if err != nil {
 		return err
 	}
-	html, err := report.RenderHTML(rep, "en")
+	locale := backend.Locale()
+	html, err := report.RenderHTML(rep, locale)
 	if err != nil {
 		return err
 	}
-	markdown, err := report.RenderMarkdown(rep, "en")
+	markdown, err := report.RenderMarkdown(rep, locale)
 	if err != nil {
 		return err
 	}
