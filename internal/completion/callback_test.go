@@ -38,3 +38,14 @@ func TestReporterPostsOnlyRedactedArtifacts(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestReporterRequiresCallbackConfigForMarketplaceSession(t *testing.T) {
+	backend := spillmcp.NewBackend("en", 42)
+	if _, err := backend.Start(context.Background(), ""); err != nil {
+		t.Fatal(err)
+	}
+	err := (completion.Reporter{}).Complete(context.Background(), "spillcheck-1", backend)
+	if err == nil || !strings.Contains(err.Error(), "not configured") {
+		t.Fatalf("expected configuration error, got %v", err)
+	}
+}

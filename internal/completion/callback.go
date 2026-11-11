@@ -19,6 +19,9 @@ type Reporter struct {
 }
 
 func (r Reporter) Complete(ctx context.Context, marketplaceSessionID string, backend *spillmcp.Backend) error {
+	if strings.TrimSpace(marketplaceSessionID) != "" && (r.URL == "" || r.Token == "") {
+		return fmt.Errorf("marketplace callback is not configured (set SPILLCHECK_MARKETPLACE_URL and SPILLCHECK_CALLBACK_TOKEN on the engine)")
+	}
 	if r.URL == "" || r.Token == "" {
 		return nil
 	}

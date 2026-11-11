@@ -44,6 +44,25 @@ Read the script before piping it to a shell. Or use Docker:
 docker compose -f deploy/docker-compose.yml up -d
 ```
 
+### Marketplace production (`agents.ai.vn`)
+
+When MCP traffic arrives through the Marketplace OAuth gateway, each HTTP request
+includes `X-Spillcheck-Session-Id`. On `spill_finish`, the engine POSTs redacted
+`report_json` / `report_html` / `report_markdown` to
+`POST /api/internal/spill-check/sessions/{id}/complete`.
+
+Set on the Instabox VM (see `deploy/marketplace-callback.env.example`):
+
+- `SPILLCHECK_MARKETPLACE_URL=https://agents.ai.vn`
+- `SPILLCHECK_CALLBACK_TOKEN` — must match Marketplace `SPILL_CHECK_CALLBACK_TOKEN`
+
+```sh
+docker compose --env-file marketplace-callback.env -f deploy/docker-compose.yml up -d
+```
+
+If callback env is missing while a Marketplace session id is bound, `spill_finish`
+returns an error instead of completing silently.
+
 ## Connect your agent
 
 Print an MCP config snippet for Claude Desktop, Cursor or Claude Code:

@@ -22,6 +22,9 @@ services:
       SPILLCHECK_BIND: "0.0.0.0"
       SPILLCHECK_PUBLIC: "false"
       HOME: /data
+      # Must match Marketplace SPILL_CHECK_CALLBACK_TOKEN on VPS; VM must reach this URL.
+      SPILLCHECK_MARKETPLACE_URL: "${SPILLCHECK_MARKETPLACE_URL:-}"
+      SPILLCHECK_CALLBACK_TOKEN: "${SPILLCHECK_CALLBACK_TOKEN:-}"
     ports:
       - "127.0.0.1:7700-7709:7700-7709"
     volumes:
