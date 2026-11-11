@@ -108,12 +108,6 @@ func TestBackendRequiresSessionAndExhaustsTasks(t *testing.T) {
 	seen := 0
 	for {
 		task, err := b.NextTask(ctx)
-		if err != nil && seen == 7 {
-			if confirmErr := b.ConfirmNewContext(ctx); confirmErr != nil {
-				t.Fatal(confirmErr)
-			}
-			task, err = b.NextTask(ctx)
-		}
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -151,7 +145,7 @@ func TestBackendRejectsDuplicateAndOutOfOrderTaskResults(t *testing.T) {
 	}
 }
 
-func TestBackendRequiresNewContextConfirmationBeforeT8(t *testing.T) {
+func TestBackendIssuesT8WithoutANewConversation(t *testing.T) {
 	ctx := context.Background()
 	b := spillmcp.NewBackend("en", 10)
 	if _, err := b.Start(ctx, ""); err != nil {
@@ -165,12 +159,6 @@ func TestBackendRequiresNewContextConfirmationBeforeT8(t *testing.T) {
 		if err := b.SubmitResult(ctx, task.TaskID, "done"); err != nil {
 			t.Fatal(err)
 		}
-	}
-	if _, err := b.NextTask(ctx); err == nil {
-		t.Fatal("T8 must wait for a new-context confirmation")
-	}
-	if err := b.ConfirmNewContext(ctx); err != nil {
-		t.Fatal(err)
 	}
 	task, err := b.NextTask(ctx)
 	if err != nil || task.TaskID != "T8" {

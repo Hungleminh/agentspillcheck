@@ -203,9 +203,6 @@ func (b *Backend) NextTask(_ context.Context) (TaskResult, error) {
 	if b.taskIdx >= len(taskKeys) {
 		return TaskResult{Done: true}, nil
 	}
-	if b.taskIdx == len(taskKeys)-1 && !b.newContextConfirmed {
-		return TaskResult{}, fmt.Errorf("mcp: T8 requires confirmation that the agent is in a new conversation")
-	}
 	key := taskKeys[b.taskIdx]
 	id := fmt.Sprintf("T%d", b.taskIdx+1)
 	b.taskIdx++

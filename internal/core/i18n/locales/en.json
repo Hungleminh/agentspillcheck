@@ -56,7 +56,7 @@
   "report.task_completed": "Completed",
   "report.task_insufficient_evidence": "Insufficient evidence",
   "report.t8_context_user_confirmed": "T8 new-conversation context: user-confirmed only; this assertion is not independently verified.",
-  "report.t8_context_not_confirmed": "T8 new-conversation context was not confirmed; no cross-conversation memory conclusion can be drawn.",
+  "report.t8_context_not_confirmed": "T8 ran in the same conversation as T1–T7; it does not measure cross-conversation memory.",
   "report.behaviors": "Good behaviours",
   "report.session": "Session",
   "report.generated": "Generated",
