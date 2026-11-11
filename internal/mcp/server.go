@@ -6,6 +6,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -106,11 +107,18 @@ func (r *TokenBackends) bind(token, marketplaceSessionID string) (*Backend, stri
 	if !ok {
 		entry.backend = NewBackend(r.locale, r.seed)
 	}
-	if entry.marketplaceSessionID == "" {
-		entry.marketplaceSessionID = marketplaceSessionID
+	if strings.TrimSpace(marketplaceSessionID) != "" {
+		entry.marketplaceSessionID = strings.TrimSpace(marketplaceSessionID)
 	}
 	r.backends[token] = entry
 	return entry.backend, entry.marketplaceSessionID, r.onComplete
+}
+
+// MarketplaceSessionID returns the Marketplace session bound to this bearer, if any.
+func (r *TokenBackends) MarketplaceSessionID(token string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.backends[token].marketplaceSessionID
 }
 
 func textResult(v any) (*sdkmcp.CallToolResult, any, error) {
@@ -315,19 +323,27 @@ func TokenHTTPHandler(backends *TokenBackends, version string) http.Handler {
 		if !ok {
 			return nil
 		}
-		backend, sessionID, complete := backends.bind(token, req.Header.Get("X-Spillcheck-Session-Id"))
+		backend, _, complete := backends.bind(token, req.Header.Get("X-Spillcheck-Session-Id"))
 		return newServer(backend, version, func(ctx context.Context, backend *Backend) error {
-			if complete == nil || sessionID == "" {
+			if complete == nil {
 				return nil
+			}
+			// Read at finish time. The MCP SDK builds this server once; later
+			// requests still refresh the id in the outer handler below.
+			sessionID := strings.TrimSpace(backends.MarketplaceSessionID(token))
+			if sessionID == "" {
+				return fmt.Errorf("marketplace session id missing (X-Spillcheck-Session-Id was not forwarded)")
 			}
 			return complete(ctx, sessionID, backend)
 		})
 	}, nil)
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if _, ok := bearerToken(req); !ok {
+		token, ok := bearerToken(req)
+		if !ok {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
+		backends.bind(token, req.Header.Get("X-Spillcheck-Session-Id"))
 		handler.ServeHTTP(w, req)
 	})
 }
