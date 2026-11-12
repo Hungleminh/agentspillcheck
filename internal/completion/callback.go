@@ -39,11 +39,12 @@ func (r Reporter) Complete(ctx context.Context, marketplaceSessionID string, bac
 	if err != nil {
 		return err
 	}
-	tasksComplete := len(rep.Tasks) == 8
+	reportTasksComplete := len(rep.Tasks) == 8
 	for _, task := range rep.Tasks {
-		tasksComplete = tasksComplete && task.Status == "completed"
+		reportTasksComplete = reportTasksComplete && task.Status == "completed"
 	}
-	payload := map[string]any{"score": rep.Score, "ranking_eligible": tasksComplete, "report_json": string(raw), "report_html": html, "report_markdown": markdown, "findings": findings(rep)}
+	rankingEligible := backend.RankingEligible() || reportTasksComplete
+	payload := map[string]any{"score": rep.Score, "ranking_eligible": rankingEligible, "report_json": string(raw), "report_html": html, "report_markdown": markdown, "findings": findings(rep)}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return err

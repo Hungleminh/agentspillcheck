@@ -100,6 +100,20 @@ func (b *Backend) SessionID() string {
 	return b.session
 }
 
+// TasksSubmitted returns how many suite tasks received spill_submit_result.
+func (b *Backend) TasksSubmitted() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.done)
+}
+
+// RankingEligible reports whether every suite task was submitted.
+func (b *Backend) RankingEligible() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.done) == len(taskKeys)
+}
+
 // NewBackend returns a backend for a locale and bait seed.
 func NewBackend(locale string, seed int64) *Backend {
 	tr, err := i18n.New(locale)
